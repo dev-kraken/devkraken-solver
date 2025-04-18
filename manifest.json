@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "Quiz Solver with Gemini",
+  "version": "1.0",
+  "description": "AI-powered quiz solution finder using Google Gemini",
+  "permissions": [
+    "storage",
+    "scripting",
+    "contextMenus"
+  ],
+  "host_permissions": [
+    "*://*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    }
+  },
+  "options_page": "options.html",
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["js/content/init.js"],
+      "css": ["css/content.css"],
+      "world": "ISOLATED"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "js/constants.js",
+        "js/content/UIManager.js",
+        "js/content/QuizService.js"
+      ],
+      "matches": ["<all_urls>"],
+      "type": "module"
+    }
+  ],
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  }
+}

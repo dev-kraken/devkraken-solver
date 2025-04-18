@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/popup.css">
+</head>
+<body>
+    <div class="popup-container">
+        <h1>Quiz Solver with Gemini</h1>
+        
+        <div class="api-section">
+            <div class="form-group">
+                <label for="apiKey">Gemini API Key:</label>
+                <div class="input-wrapper">
+                    <input type="password" id="apiKey" class="form-input" placeholder="Enter your Gemini API key">
+                    <button id="toggleVisibility" class="toggle-btn">👁️</button>
+                </div>
+            </div>
+            <button id="saveApiKey" class="btn-primary">Save Key</button>
+            <div id="status" class="status-message"></div>
+        </div>
+        
+        <div class="action-section">
+            <button id="solveCurrentBtn" class="action-btn">Solve Current Quiz</button>
+            <div class="info-text">Or use right-click menu on selected text</div>
+        </div>
+        
+        <div class="footer">
+            <a href="options.html" target="_blank">Advanced Settings</a>
+            <span class="version">v1.0</span>
+        </div>
+    </div>
+    <script src="js/popup.js" type="module"></script>
+</body>
+</html>

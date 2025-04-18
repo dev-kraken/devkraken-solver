@@ -1,0 +1,220 @@
+.quiz-solver-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.quiz-solver-btn {
+    padding: 12px 24px;
+    background: #1a73e8;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.quiz-solver-btn:hover {
+    background: #1558b7;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.quiz-solver-btn.loading {
+    background: #1a73e8cc;
+    cursor: not-allowed;
+}
+
+.quiz-solver-tooltip {
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-top: 8px;
+    position: relative;
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+}
+
+.quiz-solver-tooltip:before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 20px;
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 6px solid rgba(0, 0, 0, 0.8);
+}
+
+.loader {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #1a73e8;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+}
+
+.loader.hidden {
+    display: none;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.quiz-solver-correct {
+    position: relative;
+    border: 2px solid #34a853 !important;
+    box-shadow: 0 0 8px rgba(52, 168, 83, 0.4) !important;
+}
+
+.correct-badge {
+    background: #34a853;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    margin-left: 8px;
+    font-weight: 500;
+    display: inline-block;
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+}
+
+/* Answer panel styles */
+.quiz-solver-answer-panel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 350px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+    z-index: 10000;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    overflow: hidden;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.quiz-solver-answer-panel.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.answer-panel-header {
+    background: #1a73e8;
+    color: white;
+    padding: 12px 16px;
+    font-weight: 500;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.answer-panel-content {
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.answer-panel-result {
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #eee;
+}
+
+.answer-panel-result .correct-answer {
+    color: #34a853;
+    font-weight: 500;
+    margin-top: 8px;
+    display: inline-block;
+}
+
+.answer-panel-options ul {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0 0;
+}
+
+.answer-panel-options li {
+    padding: 8px 12px;
+    margin: 4px 0;
+    border-radius: 4px;
+    background: #f8f9fa;
+}
+
+.answer-panel-options li.correct-option {
+    background: rgba(52, 168, 83, 0.1);
+    border-left: 3px solid #34a853;
+}
+
+.error-toast, .success-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: white;
+    color: #202124;
+    padding: 12px 16px;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 10000;
+    max-width: 80%;
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+    font-size: 14px;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+}
+
+.error-toast.show, .success-toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+.error-toast {
+    border-left: 4px solid #ea4335;
+}
+
+.success-toast {
+    border-left: 4px solid #34a853;
+}
+
+.error-icon, .success-icon {
+    font-size: 16px;
+}
+
+.close-btn {
+    margin-left: auto;
+    cursor: pointer;
+    font-size: 18px;
+    opacity: 0.6;
+}
+
+.close-btn:hover {
+    opacity: 1;
+}
