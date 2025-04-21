@@ -33,15 +33,11 @@ export function isCodeEvaluationQuestion(question) {
  */
 export function evaluateCode(question, options) {
     try {
-        console.log('Evaluating code in question:', question);
-        console.log('Options:', options);
-        
         // Handle special cases first
         
         // Special case for the 'banana' question
         if (question.includes("('b' + 'a' + + 'a' + 'a').toLowerCase()") || 
             question.includes("'b' + 'a' + + 'a' + 'a'")) {
-            console.log('Detected banana question');
             return options.find(option => option.toLowerCase() === 'banana');
         }
         
@@ -62,11 +58,8 @@ export function evaluateCode(question, options) {
         }
         
         if (!codeToEvaluate) {
-            console.log('No code found to evaluate');
             return null;
         }
-        
-        console.log('Code to evaluate:', codeToEvaluate);
         
         // Handle specific JavaScript quirks
         
@@ -74,7 +67,6 @@ export function evaluateCode(question, options) {
         if (codeToEvaluate.includes("'b' + 'a' + + 'a' + 'a'") || 
             codeToEvaluate.includes('"b" + "a" + + "a" + "a"')) {
             const result = 'baNaNa';
-            console.log('NaN concatenation detected, result:', result);
             
             // Check if we need to lowercase
             if (question.includes('.toLowerCase()')) {
@@ -90,7 +82,6 @@ export function evaluateCode(question, options) {
             // Create a safe evaluation function
             const safeEval = new Function('return ' + codeToEvaluate);
             result = safeEval();
-            console.log('Evaluation result:', result);
             
             // Convert result to string if it's not already
             if (result === null) {
@@ -101,19 +92,14 @@ export function evaluateCode(question, options) {
                 result = String(result);
             }
             
-            console.log('Stringified result:', result);
-            
             // Find the option that matches the result
             const matchingOption = options.find(option => {
                 return option.toLowerCase() === result.toLowerCase() || 
                        option.toLowerCase().includes(result.toLowerCase());
             });
             
-            console.log('Matching option:', matchingOption);
             return matchingOption;
         } catch (e) {
-            console.error('Error during code evaluation:', e);
-            
             // If direct evaluation fails, try to match error messages
             if (e.message.includes('is not defined')) {
                 const varName = e.message.split(' ')[0];
@@ -124,7 +110,6 @@ export function evaluateCode(question, options) {
                 );
                 
                 if (errorOption) {
-                    console.log('Found option matching error:', errorOption);
                     return errorOption;
                 }
             }

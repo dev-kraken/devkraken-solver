@@ -49,35 +49,34 @@ function calculateSimilarity(str1, str2) {
  * Extracts the answer from AI response text
  * @param {string} answerText - Raw text from AI response
  * @param {Array<string>} options - Available answer options
- * @returns {string} The best matching answer option
+ * @returns {string|null} The best matching answer option
  */
 export function extractAnswer(answerText, options) {
-    console.log('Extracting answer from:', answerText);
-    console.log('Available options:', options);
-    
     if (!answerText || !options || options.length === 0) {
-        console.log('No answer text or options provided');
         return null;
     }
     
-    // First, try to extract a letter answer (A, B, C, etc.)
-    const letterAnswer = extractLetterAnswer(answerText, options);
-    if (letterAnswer) {
-        console.log('Found letter answer:', letterAnswer);
-        return letterAnswer;
+    try {
+        // First, try to extract a letter answer (A, B, C, etc.)
+        const letterAnswer = extractLetterAnswer(answerText, options);
+        if (letterAnswer) {
+            return letterAnswer;
+        }
+        
+        // Try to match the answer text to one of the options
+        const directMatch = findDirectMatch(answerText, options);
+        if (directMatch) {
+            return directMatch;
+        }
+        
+        // If no match found, try to find the best matching option
+        const bestMatch = findBestMatch(answerText, options);
+        return bestMatch;
+    } catch (error) {
+        // Use globalThis.console to avoid 'console' is not defined error
+        globalThis.console.error('Error extracting answer:', error);
+        return null;
     }
-    
-    // Try to match the answer text to one of the options
-    const directMatch = findDirectMatch(answerText, options);
-    if (directMatch) {
-        console.log('Found direct match:', directMatch);
-        return directMatch;
-    }
-    
-    // If no match found, try to find the best matching option
-    const bestMatch = findBestMatch(answerText, options);
-    console.log('Found best match:', bestMatch);
-    return bestMatch;
 }
 
 /**

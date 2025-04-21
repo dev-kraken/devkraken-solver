@@ -1,95 +1,87 @@
 /**
- * UI Manager to coordinate all UI components
+ * UI manager for the quiz solver
  * @author Dev Kraken <soman@devkraken.com>
  */
 
 import { SolverButton } from './components/solver-button.js';
-import { Loader } from './components/loader.js';
 import { Toast } from './components/toast.js';
 import { ResultsPanel } from './components/results-panel.js';
+import { Loader } from './components/loader.js';
 import { SelectionOverlay } from './components/selection-overlay.js';
-import { CLASSES } from '../../shared/constants.js';
-import { findAssociatedLabel } from '../../shared/utils/dom-utils.js';
 
 /**
- * Manages all UI components of the extension
+ * Manages the UI components for the quiz solver
  */
 export class UIManager {
     constructor() {
-        this.solverButton = null;
-        this.loader = null;
-        this.toast = null;
+        this.solverButton = new SolverButton();
+        this.toast = new Toast();
         this.resultsPanel = null;
-        this.selectionOverlay = null;
-        this.selectedElement = null;
+        this.loader = new Loader();
+        this.selectionOverlay = new SelectionOverlay();
         this.isSelectionMode = false;
+        this.selectedElement = null;
     }
     
     /**
-     * Initializes all UI components
+     * Initializes the UI components
      * @returns {Promise<void>}
      */
     async initialize() {
         try {
-            console.log('UIManager: Creating UI components');
-            
-            // Create components
-            this.toast = new Toast();
-            
-            // No longer showing test toast
-            // this.toast.show('Quiz Solver UI initialized', 'info');
-            
-            this.loader = new Loader();
-            this.loader.create();
-            this.resultsPanel = new ResultsPanel();
-            this.selectionOverlay = new SelectionOverlay();
-            
-            // Initialize the solver button last to ensure its on top
-            this.solverButton = new SolverButton(
-                this.handleSolverButtonClick.bind(this)
-            );
+            // Create the solver button
             this.solverButton.create();
             
-            console.log('UIManager: All components initialized successfully');
+            // Create results panel on-demand
+            this.resultsPanel = new ResultsPanel();
+            
             return Promise.resolve();
         } catch (error) {
-            console.error('Error initializing UIManager:', error);
-            
-            // Try to show error message even if UI initialization failed
-            try {
-                // Create a minimal toast if needed
-                if (!this.toast) {
-                    this.toast = new Toast();
-                }
-                
-                this.toast.showError('Failed to initialize UI: ' + error.message);
-            } catch (e) {
-                console.error('Could not show error toast:', e);
-                // Last resort
-                alert('Quiz Solver Extension Error: Failed to initialize UI: ' + error.message);
-            }
-            
+            console.error('Error initializing UI:', error);
             return Promise.reject(error);
         }
     }
     
     /**
-     * Handles the solver button click
-     * This should be bound to an external handler through setButtonClickHandler
+     * Shows a toast notification
+     * @param {string} message - Message to display
+     * @param {'success'|'error'|'info'} type - Type of toast
      */
-    handleSolverButtonClick() {
-        console.log('UIManager: Default button click handler called');
-        
-        // Dispatch event instead of trying to access chrome.storage directly
-        const event = new CustomEvent('quiz-solver-button-clicked');
-        document.dispatchEvent(event);
-        
-        // Show a direct message about API key
+    showToast(message, type = 'info') {
         try {
-            this.showToast('Please make sure your API key is set in the extension popup', 'info');
+            this.toast.show(message, type);
         } catch (error) {
             console.error('Error showing toast:', error);
+            
+            // Try direct logging as fallback
+            try {
+                console.log(`[Quiz Solver] ${type}: ${message}`);
+            } catch (e) {
+                // Silent fail
+            }
         }
+    }
+    
+    /**
+     * Shows an error toast
+     * @param {string} message - Error message to display
+     */
+    showError(message) {
+        this.showToast(message, 'error');
+    }
+    
+    /**
+     * Shows the loader
+     */
+    showLoader() {
+        this.loader.show();
+    }
+    
+    /**
+     * Hides the loader
+     */
+    hideLoader() {
+        this.loader.hide();
     }
     
     /**
@@ -98,50 +90,8 @@ export class UIManager {
      */
     setButtonClickHandler(handler) {
         if (typeof handler === 'function') {
-            console.log('UIManager: Setting custom button click handler');
-            this.handleSolverButtonClick = handler;
-        } else {
-            console.warn('UIManager: Invalid click handler provided, using default');
+            this.solverButton.setClickHandler(handler);
         }
-    }
-    
-    /**
-     * Shows the loading indicator
-     */
-    showLoader() {
-        this.loader.show();
-    }
-    
-    /**
-     * Hides the loading indicator
-     */
-    hideLoader() {
-        this.loader.hide();
-    }
-    
-    /**
-     * Shows a success toast message
-     * @param {string} message - Success message
-     */
-    showSuccess(message) {
-        this.toast.showSuccess(message);
-    }
-    
-    /**
-     * Shows an error toast message
-     * @param {string} message - Error message
-     */
-    showError(message) {
-        this.toast.showError(message);
-    }
-    
-    /**
-     * Shows any type of toast message
-     * @param {string} message - Toast message
-     * @param {'success'|'error'|'info'} type - Toast type
-     */
-    showToast(message, type = 'info') {
-        this.toast.show(message, type);
     }
     
     /**
@@ -157,7 +107,6 @@ export class UIManager {
      * Enables selection mode for choosing quiz elements
      */
     enableSelectionMode() {
-        console.log('UIManager: Enabling selection mode');
         this.isSelectionMode = true;
         this.solverButton.setSelectionMode();
         this.showToast('Click on the element containing the question and answers', 'info');
@@ -174,7 +123,6 @@ export class UIManager {
      * Disables selection mode
      */
     disableSelectionMode() {
-        console.log('UIManager: Disabling selection mode');
         this.isSelectionMode = false;
         this.solverButton.resetNormalMode();
         this.selectionOverlay.hide();
@@ -185,11 +133,8 @@ export class UIManager {
      * @param {MouseEvent} event - Click event
      */
     handleDocumentClick(event) {
-        console.log('UIManager: Document click detected in selection mode');
-        
         // Check if we're still in selection mode
         if (!this.isSelectionMode) {
-            console.log('UIManager: Not in selection mode, ignoring click');
             return;
         }
         
@@ -199,11 +144,8 @@ export class UIManager {
         
         // Ignore clicks on extension elements
         if (this.isExtensionElement(event.target)) {
-            console.log('UIManager: Click on extension element, ignoring');
             return;
         }
-        
-        console.log('UIManager: Valid element selected:', event.target);
         
         // Get the clicked element
         this.selectedElement = event.target;
@@ -236,7 +178,6 @@ export class UIManager {
         
         // We don't need to add inline styles here anymore
         // The SelectionOverlay component handles the highlighting
-        console.log('UIManager: Mouseover on element during selection mode');
     }
     
     /**
@@ -248,7 +189,6 @@ export class UIManager {
         
         // We don't need to remove inline styles here anymore
         // The SelectionOverlay component handles the highlighting
-        console.log('UIManager: Mouseout on element during selection mode');
     }
     
     /**
@@ -260,6 +200,8 @@ export class UIManager {
         return element.id === 'solveQuizBtn' || 
                element.closest('#solveQuizBtn') ||
                element.closest('#quiz-solver-selection-overlay') ||
+               element.closest('#quiz-solver-highlight') ||
+               element.id === 'quiz-solver-highlight' ||
                element.closest('#quizSolverLoader') ||
                element.closest('.quiz-solver-toast') ||
                element.closest('.quiz-solver-panel');
@@ -275,11 +217,6 @@ export class UIManager {
         
         setTimeout(() => {
             element.style.backgroundColor = originalBackground;
-            
-            // Notify that an element has been selected
-            document.dispatchEvent(new CustomEvent('quiz-element-selected', {
-                detail: { element: this.selectedElement }
-            }));
         }, 500);
     }
     
@@ -297,8 +234,6 @@ export class UIManager {
      */
     async getSavedElement() {
         try {
-            console.log('UIManager: Getting saved element for domain:', window.location.hostname);
-            
             // Get the storage key for saved elements
             const SAVED_ELEMENTS = 'savedElements';
             
@@ -322,13 +257,9 @@ export class UIManager {
                             const savedElements = data[SAVED_ELEMENTS] || {};
                             const hostname = window.location.hostname;
                             
-                            console.log('UIManager: Saved elements data:', savedElements);
-                            console.log('UIManager: Looking for saved element for:', hostname);
-                            
                             // Check if we have an XPath for this domain
                             if (savedElements[hostname]) {
                                 const xpath = savedElements[hostname];
-                                console.log('UIManager: Found saved XPath:', xpath);
                                 
                                 // Try to find the element using the saved XPath
                                 try {
@@ -341,17 +272,12 @@ export class UIManager {
                                     ).singleNodeValue;
                                     
                                     if (element) {
-                                        console.log('UIManager: Found element using saved XPath');
                                         resolve(element);
                                         return;
-                                    } else {
-                                        console.log('UIManager: XPath found but element not found in DOM');
                                     }
                                 } catch (error) {
                                     console.error('Error evaluating XPath:', error);
                                 }
-                            } else {
-                                console.log('UIManager: No saved element for this domain');
                             }
                             
                             resolve(null);
@@ -366,7 +292,6 @@ export class UIManager {
                     
                     // Set a timeout in case we don't get a response
                     setTimeout(() => {
-                        console.log('UIManager: Storage request timed out');
                         resolve(null);
                     }, 1000);
                 } catch (error) {
@@ -388,11 +313,8 @@ export class UIManager {
     async saveElementXPath(element) {
         try {
             if (!element) {
-                console.error('UIManager: Cannot save null element');
                 return false;
             }
-            
-            console.log('UIManager: Saving element XPath for domain:', window.location.hostname);
             
             // Get the storage key for saved elements
             const SAVED_ELEMENTS = 'savedElements';
@@ -400,11 +322,8 @@ export class UIManager {
             // Generate XPath for the element
             const xpath = this.generateXPath(element);
             if (!xpath) {
-                console.error('UIManager: Failed to generate XPath for element');
                 return false;
             }
-            
-            console.log('UIManager: Generated XPath:', xpath);
             
             // Use a more reliable way to access storage
             return new Promise((resolve) => {
@@ -441,7 +360,6 @@ export class UIManager {
                             window.addEventListener('quiz-solver-storage-response', function setHandler(event) {
                                 window.removeEventListener('quiz-solver-storage-response', setHandler);
                                 
-                                console.log('UIManager: Saved element XPath for domain:', hostname);
                                 this.showToast(`Element saved for ${hostname}. It will be used automatically next time.`, 'success');
                                 resolve(true);
                             }.bind(this), { once: true });
@@ -451,7 +369,6 @@ export class UIManager {
                             
                             // Set a timeout in case we don't get a response
                             setTimeout(() => {
-                                console.log('UIManager: Storage set request timed out');
                                 resolve(false);
                             }, 1000);
                         } catch (error) {
@@ -465,7 +382,6 @@ export class UIManager {
                     
                     // Set a timeout in case we don't get a response
                     setTimeout(() => {
-                        console.log('UIManager: Storage get request timed out');
                         resolve(false);
                     }, 1000);
                 } catch (error) {
@@ -573,79 +489,48 @@ export class UIManager {
             }
         }
         
-        // Try with radio buttons and checkboxes
+        // If still no match, try partial match
         if (!matched) {
-            const radioButtons = document.querySelectorAll('input[type="radio"], input[type="checkbox"]');
-            
-            for (const radio of radioButtons) {
-                const label = findAssociatedLabel(radio);
-                if (label && label.textContent.trim() === answer.trim()) {
-                    this.highlightElement(label);
+            // Try to find elements containing the answer
+            for (const element of allElements) {
+                const text = element.textContent.trim();
+                if (text.length > 0 && 
+                    text.length < 200 && 
+                    (text.includes(answer) || answer.includes(text))) {
+                    this.highlightElement(element);
                     matched = true;
-                    break;
+                    // Don't break, as we want to highlight all potential matches
                 }
             }
         }
         
-        // Always show the results panel
-        this.showResults(this.getQuestionText(), answer);
-        
-        if (matched) {
-            this.showSuccess('Answer found!');
-        } else {
-            this.showSuccess('Answer provided in panel');
+        // If still no match, show a message
+        if (!matched) {
+            this.showToast(`Could not highlight the answer: ${answer}`, 'info');
         }
     }
     
     /**
-     * Gets the question text if available
-     * @returns {string} Question text or placeholder
-     */
-    getQuestionText() {
-        if (this.selectedElement) {
-            return this.selectedElement.textContent.trim().substring(0, 100) + '...';
-        }
-        return "Question analyzed by Gemini";
-    }
-    
-    /**
-     * Highlights an element as the correct answer
+     * Highlights an element as the answer
      * @param {Element} element - Element to highlight
      */
     highlightElement(element) {
         if (!element) return;
         
-        // Scroll to element
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Save original styles
+        const originalOutline = element.style.outline;
+        const originalBackground = element.style.backgroundColor;
+        const originalTransition = element.style.transition;
         
-        // Add highlight class
-        element.classList.add(CLASSES.CORRECT);
+        // Add highlight styles
+        element.style.transition = 'all 0.5s ease';
+        element.style.outline = '2px solid #4caf50';
+        element.style.backgroundColor = 'rgba(76, 175, 80, 0.2)';
         
-        // Flash effect for better visibility
-        element.style.transition = 'background-color 0.5s ease';
-        
-        // For radio buttons and checkboxes, try to select them
-        const nearbyInput = element.querySelector('input[type="radio"], input[type="checkbox"]');
-        const parentLabel = element.closest('label');
-        
-        if (nearbyInput) {
-            try {
-                nearbyInput.checked = true;
-                // Dispatch change event to trigger any listeners
-                nearbyInput.dispatchEvent(new Event('change', { bubbles: true }));
-            } catch (e) {
-                // Some pages prevent programmatic selection
-            }
-        } else if (parentLabel) {
-            const associatedInput = document.getElementById(parentLabel.getAttribute('for'));
-            if (associatedInput) {
-                try {
-                    associatedInput.checked = true;
-                    associatedInput.dispatchEvent(new Event('change', { bubbles: true }));
-                } catch (e) {
-                    // Some pages prevent programmatic selection
-                }
-            }
+        // Scroll to the element if not in view
+        const rect = element.getBoundingClientRect();
+        if (rect.top < 0 || rect.bottom > window.innerHeight) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }
 }

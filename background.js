@@ -26,8 +26,6 @@ const MESSAGE_TYPES = {
  */
 function initialize() {
     try {
-        console.log('Quiz Solver: Background script initializing');
-        
         // Initialize storage with default values
         initializeStorage();
         
@@ -36,8 +34,6 @@ function initialize() {
         
         // Set up message listeners
         setupMessageListeners();
-        
-        console.log('Quiz Solver extension initialized successfully');
     } catch (error) {
         console.error('Failed to initialize extension:', error);
     }
@@ -95,8 +91,6 @@ function createContextMenu() {
                 });
             }
         });
-        
-        console.log('Context menu created successfully');
     } catch (error) {
         console.error('Error creating context menu:', error);
     }
@@ -107,30 +101,100 @@ function createContextMenu() {
  */
 function setupMessageListeners() {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        console.log('Background received message:', message);
-        
-        // Handle API key validation
-        if (message.type === MESSAGE_TYPES.VALIDATE_API_KEY) {
-            validateApiKey(message.payload.apiKey)
-                .then(result => sendResponse(result))
-                .catch(error => sendResponse({ valid: false, error: error.message }));
-            return true; // Keep the message channel open
-        }
-        
-        // Handle storage updates
-        if (message.type === MESSAGE_TYPES.STORAGE_UPDATE) {
-            broadcastStorageUpdate(message.payload)
-                .then(() => sendResponse({ success: true }))
-                .catch(error => sendResponse({ success: false, error: error.message }));
-            return true; // Keep the message channel open
-        }
-        
-        // Handle solve current quiz action
-        if (message.action === "solveCurrentQuiz") {
-            if (sender.tab) {
-                chrome.tabs.sendMessage(sender.tab.id, { action: "solveCurrentQuiz" });
-                sendResponse({ status: 'processing' });
+        try {
+            // Handle API key validation
+            if (message.type === MESSAGE_TYPES.VALIDATE_API_KEY) {
+                validateApiKey(message.payload.apiKey)
+                    .then(result => sendResponse(result))
+                    .catch(error => sendResponse({ valid: false, error: error.message }));
+                return true; // Keep the message channel open
             }
+            
+            // Handle storage updates
+            if (message.type === MESSAGE_TYPES.STORAGE_UPDATE) {
+                broadcastStorageUpdate(message.payload)
+                    .then(() => sendResponse({ success: true }))
+                    .catch(error => sendResponse({ success: false, error: error.message }));
+                return true; // Keep the message channel open
+            }
+            
+            // Handle solve current quiz action
+            if (message.action === "solveCurrentQuiz") {
+                if (sender.tab) {
+                    chrome.tabs.sendMessage(sender.tab.id, { action: "solveCurrentQuiz" });
+                    sendResponse({ status: 'processing' });
+                }
+                return true;
+            }
+            
+            // Handle auto-detect message
+            if (message.type === MESSAGE_TYPES.AUTO_DETECT) {
+                // Relay auto-detect message to all tabs in the current window
+                chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                    if (tabs.length > 0) {
+                        chrome.tabs.sendMessage(tabs[0].id, {
+                            type: MESSAGE_TYPES.AUTO_DETECT,
+                            payload: message.payload
+                        });
+                    }
+                });
+                return true;
+            }
+            
+            // Handle adjust sensitivity message
+            if (message.type === MESSAGE_TYPES.ADJUST_SENSITIVITY) {
+                handleStorageUpdate({
+                    key: STORAGE_KEYS.DETECTION_SENSITIVITY,
+                    value: message.payload.sensitivity
+                }).then(() => {
+                    sendResponse({status: 'updated'});
+                });
+                return true;
+            }
+            
+            // Handle get quiz history action
+            if (message.action === "getQuizHistory") {
+                getStorageData([STORAGE_KEYS.DETECTION_HISTORY]).then((data) => {
+                    sendResponse({
+                        history: data[STORAGE_KEYS.DETECTION_HISTORY] || []
+                    });
+                });
+                return true;
+            }
+            
+            // Handle clear quiz history action
+            if (message.action === "clearQuizHistory") {
+                saveStorageData({[STORAGE_KEYS.DETECTION_HISTORY]: []}).then(() => {
+                    sendResponse({status: 'cleared'});
+                });
+                return true;
+            }
+            
+            // Handle get user preferences action
+            if (message.action === "getUserPreferences") {
+                getStorageData([STORAGE_KEYS.USER_PREFERENCES]).then((data) => {
+                    sendResponse({
+                        preferences: data[STORAGE_KEYS.USER_PREFERENCES] || {}
+                    });
+                });
+                return true;
+            }
+            
+            // Handle update user preferences action
+            if (message.action === "updateUserPreferences") {
+                getStorageData([STORAGE_KEYS.USER_PREFERENCES]).then((data) => {
+                    const currentPreferences = data[STORAGE_KEYS.USER_PREFERENCES] || {};
+                    const updatedPreferences = {...currentPreferences, ...message.preferences};
+                    
+                    saveStorageData({[STORAGE_KEYS.USER_PREFERENCES]: updatedPreferences}).then(() => {
+                        sendResponse({status: 'updated'});
+                    });
+                });
+                return true;
+            }
+        } catch (error) {
+            console.error('Error handling message:', error);
+            sendResponse({status: 'error', message: error.message});
             return true;
         }
     });
@@ -191,22 +255,66 @@ function initializeStorage() {
         
         // Save updates if any
         if (Object.keys(updates).length > 0) {
-            chrome.storage.sync.set(updates, () => {
-                console.log('Storage initialized with defaults');
-            });
+            chrome.storage.sync.set(updates);
         }
+    });
+}
+
+/**
+ * Handles storage updates
+ * @param {Object} payload - Update payload
+ * @returns {Promise<Object>} Update result
+ */
+async function handleStorageUpdate(payload) {
+    // Save to storage
+    await saveStorageData({[payload.key]: payload.value});
+    
+    // Broadcast to all tabs
+    return broadcastStorageUpdate(payload);
+}
+
+/**
+ * Saves data to storage
+ * @param {Object} data - Data to save
+ * @returns {Promise<void>} Promise that resolves when data is saved
+ */
+function saveStorageData(data) {
+    return new Promise((resolve, reject) => {
+        chrome.storage.sync.set(data, () => {
+            if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+            } else {
+                resolve();
+            }
+        });
+    });
+}
+
+/**
+ * Retrieves data from storage
+ * @param {Array<string>} keys - Keys to retrieve
+ * @returns {Promise<Object>} Promise that resolves with retrieved data
+ */
+function getStorageData(keys) {
+    return new Promise((resolve, reject) => {
+        chrome.storage.sync.get(keys, (data) => {
+            if (chrome.runtime.lastError) {
+                reject(chrome.runtime.lastError);
+            } else {
+                resolve(data);
+            }
+        });
     });
 }
 
 /**
  * Broadcasts a storage update to all tabs
  * @param {Object} payload - The update payload containing key and value
- * @returns {Promise<void>} Promise that resolves when broadcast is complete
+ * @returns {Promise<Object>} Success status
  */
 async function broadcastStorageUpdate(payload) {
     try {
         const tabs = await chrome.tabs.query({});
-        console.log(`Broadcasting to ${tabs.length} tabs`);
         
         for (const tab of tabs) {
             try {
@@ -219,7 +327,6 @@ async function broadcastStorageUpdate(payload) {
             }
         }
         
-        console.log('Broadcast complete');
         return { success: true };
     } catch (error) {
         console.error('Error broadcasting storage update:', error);

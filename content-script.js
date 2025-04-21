@@ -1,39 +1,38 @@
-// Content script loader
-// This file loads the actual module content script
+/**
+ * Content script for Quiz Solver extension
+ * @author Dev Kraken <soman@devkraken.com>
+ */
 
-// Simple toast function that doesn't rely on modules
-function showDirectToast(message, type = 'error') {
+// Inject page script for UI interaction
+let isScriptInjected = false;
+
+/**
+ * Shows a direct toast notification without relying on the UI framework
+ * @param {string} message - Message to show
+ * @param {'success'|'error'|'info'} type - Toast type
+ */
+function showDirectToast(message, type = 'info') {
     try {
-        console.log(`Direct Toast: ${message} (${type})`);
-        
-        // Remove any existing toast
-        const existingToast = document.getElementById('quiz-solver-direct-toast');
-        if (existingToast) {
-            existingToast.remove();
-        }
+        const toastId = 'direct-quiz-solver-toast-' + Date.now();
         
         // Create toast element
         const toast = document.createElement('div');
-        toast.id = 'quiz-solver-direct-toast';
-        toast.textContent = message;
-        
-        // Style the toast
-        Object.assign(toast.style, {
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            padding: '12px 20px',
-            borderRadius: '4px',
-            color: 'white',
-            fontFamily: 'Arial, sans-serif',
-            zIndex: '10001',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
-            maxWidth: '300px',
-            wordBreak: 'break-word',
-            opacity: '0',
-            transform: 'translateY(20px)',
-            transition: 'opacity 0.3s ease, transform 0.3s ease'
-        });
+        toast.id = toastId;
+        toast.style.position = 'fixed';
+        toast.style.bottom = '20px';
+        toast.style.right = '20px';
+        toast.style.padding = '12px 20px';
+        toast.style.borderRadius = '4px';
+        toast.style.zIndex = '10000';
+        toast.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+        toast.style.fontFamily = 'Arial, sans-serif';
+        toast.style.fontSize = '14px';
+        toast.style.color = 'white';
+        toast.style.maxWidth = '300px';
+        toast.style.wordBreak = 'break-word';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        toast.style.transition = 'opacity 0.3s, transform 0.3s';
         
         // Set color based on type
         if (type === 'success') {
@@ -48,98 +47,108 @@ function showDirectToast(message, type = 'error') {
         }
         
         toast.textContent = message;
-        
-        // Add to document
         document.body.appendChild(toast);
         
-        // Force reflow and animate in
+        // Force reflow
         toast.getBoundingClientRect();
+        
+        // Show toast
         toast.style.opacity = '1';
         toast.style.transform = 'translateY(0)';
         
-        // Auto-remove after 5 seconds
+        // Auto remove after 5 seconds
         setTimeout(() => {
             toast.style.opacity = '0';
             toast.style.transform = 'translateY(20px)';
             
             setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.remove();
-                }
+                toast.remove();
             }, 300);
         }, 5000);
-        
-        return true;
     } catch (error) {
-        console.error('Error showing direct toast:', error);
-        // Last resort
+        console.error('Failed to show toast:', error);
+        
+        // Last resort fallback
         try {
-            alert('Quiz Solver: ' + message);
+            console.log('[Quiz Solver] ' + message);
         } catch (e) {
-            console.error('Even alert failed:', e);
+            // Silent fail
         }
-        return false;
     }
 }
 
-// Function to inject the module script
+/**
+ * Injects a script into the page context
+ */
 function injectScript() {
+    if (isScriptInjected) return;
+    
     try {
-        // Check if we have access to document and document.head
-        if (!document || !document.head) {
-            console.warn('Quiz Solver: Cannot access document head, possibly in an iframe');
-            return;
-        }
-        
-        // Create a script element to load the real content script as a module
+        // Create script element
         const script = document.createElement('script');
         script.src = chrome.runtime.getURL('src/content/index.js');
         script.type = 'module';
-        document.head.appendChild(script);
-
-        // Inject CSS - note that the CSS is already injected by the manifest's content_scripts
-        // but we also inject it here for completeness in case we need dynamic styles later
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = chrome.runtime.getURL('css/content.css');
-        document.head.appendChild(link);
         
-        console.log('Quiz Solver scripts injected successfully');
+        // Listen for load and error events
+        script.onload = () => {
+            isScriptInjected = true;
+            script.remove(); // Clean up after successful loading
+        };
         
-        // No longer showing initialization toast
-        // setTimeout(() => {
-        //     showDirectToast('Quiz Solver initialized', 'info');
-        // }, 2000);
+        script.onerror = (error) => {
+            console.error('Error loading script:', error);
+            showDirectToast('Failed to load quiz solver script', 'error');
+        };
+        
+        // Add to page
+        (document.head || document.documentElement).appendChild(script);
     } catch (error) {
-        console.error('Error injecting Quiz Solver scripts:', error);
-        showDirectToast('Failed to initialize Quiz Solver: ' + error.message);
+        console.error('Error injecting script:', error);
+        showDirectToast('Failed to inject quiz solver script', 'error');
     }
 }
 
-// Set up storage request handling
+/**
+ * Sets up messaging between content script and background script
+ */
+function setupMessaging() {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        // Relay message to the page script
+        const event = new CustomEvent('quiz-solver-content-message', {
+            detail: request
+        });
+        
+        document.dispatchEvent(event);
+        
+        // Set up response listener
+        document.addEventListener('quiz-solver-content-response', function handler(e) {
+            document.removeEventListener('quiz-solver-content-response', handler);
+            sendResponse(e.detail);
+        }, { once: true });
+        
+        return true;
+    });
+}
+
+/**
+ * Sets up storage request handling
+ */
 function setupStorageRequestHandling() {
-    console.log('Setting up storage request handling');
-    
     // Listen for storage requests from the page
     window.addEventListener('quiz-solver-storage-request', async (event) => {
         try {
-            console.log('Content script: Received storage request:', event.detail);
             const detail = event.detail;
             let response = {};
             
             // Handle different actions
             if (detail.action === 'get') {
-                console.log('Content script: Processing GET storage request for keys:', detail.keys);
-                
                 try {
                     const data = await new Promise(resolve => {
                         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
                             chrome.storage.sync.get(detail.keys, result => {
-                                console.log('Content script: Storage GET result:', result);
                                 resolve(result);
                             });
                         } else {
-                            console.warn('Content script: chrome.storage.sync not available, returning empty result');
                             resolve({});
                         }
                     });
@@ -149,17 +158,13 @@ function setupStorageRequestHandling() {
                     response = { error: err.message, result: {} };
                 }
             } else if (detail.action === 'set') {
-                console.log('Content script: Processing SET storage request with data:', detail.data);
-                
                 try {
                     await new Promise(resolve => {
                         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
                             chrome.storage.sync.set(detail.data, () => {
-                                console.log('Content script: Storage SET completed');
                                 resolve();
                             });
                         } else {
-                            console.warn('Content script: chrome.storage.sync not available, skipping SET');
                             resolve();
                         }
                     });
@@ -169,17 +174,13 @@ function setupStorageRequestHandling() {
                     response = { error: err.message };
                 }
             } else if (detail.action === 'remove') {
-                console.log('Content script: Processing REMOVE storage request for keys:', detail.keys);
-                
                 try {
                     await new Promise(resolve => {
                         if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.sync) {
                             chrome.storage.sync.remove(detail.keys, () => {
-                                console.log('Content script: Storage REMOVE completed');
                                 resolve();
                             });
                         } else {
-                            console.warn('Content script: chrome.storage.sync not available, skipping REMOVE');
                             resolve();
                         }
                     });
@@ -189,12 +190,11 @@ function setupStorageRequestHandling() {
                     response = { error: err.message };
                 }
             } else {
-                console.error('Content script: Invalid storage action:', detail.action);
+                console.error('Invalid storage action:', detail.action);
                 response = { error: 'Invalid action' };
             }
             
             // Send the response back to the page
-            console.log('Content script: Sending storage response:', response);
             window.dispatchEvent(new CustomEvent('quiz-solver-storage-response', { 
                 detail: response 
             }));
@@ -206,49 +206,17 @@ function setupStorageRequestHandling() {
             }));
         }
     });
-    
-    console.log('Storage request handling set up successfully');
 }
 
-// Set up messaging between content script and background script
-function setupMessaging() {
-    // Listen for messages from the injected script
-    window.addEventListener('quiz-solver-background-request', (event) => {
-        // Forward to background script
-        chrome.runtime.sendMessage(event.detail, (response) => {
-            // Send response back to page
-            window.dispatchEvent(new CustomEvent('quiz-solver-background-response', {
-                detail: response
-            }));
-        });
-    });
-    
-    // Listen for messages from background script
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-        // Forward to page
-        window.dispatchEvent(new CustomEvent('quiz-solver-content-message', {
-            detail: message
-        }));
-        
-        // Show direct toast for API key messages
-        if (message.action === "showError" && message.message && message.message.includes('API key')) {
-            showDirectToast(message.message, 'error');
-        }
-        
-        return true;
-    });
-}
-
-// Initialize
+/**
+ * Initialize the content script
+ */
 function initialize() {
     try {
         // Don't initialize in iframes to avoid multiple instances
         if (window !== window.top) {
-            console.log('Quiz Solver: Not initializing in iframe');
             return;
         }
-        
-        console.log('Initializing Quiz Solver content script');
         
         // Set up storage request handling
         setupStorageRequestHandling();
@@ -262,16 +230,11 @@ function initialize() {
         // Add a click handler to show the API key message when clicking the extension button
         document.addEventListener('click', function(e) {
             if (e.target && (e.target.id === 'solveQuizBtn' || e.target.closest('#solveQuizBtn'))) {
-                console.log('Content script: Detected click on solver button');
-                
                 // Check if API key exists
                 chrome.storage.sync.get('geminiApiKey', function(result) {
-                    console.log('API key check result:', result);
-                    
                     if (!result || !result.geminiApiKey) {
                         showDirectToast('Please set your Gemini API key in the extension popup', 'error');
                     } else {
-                        console.log('API key found, proceeding with solve');
                         // API key exists, trigger solve action
                         document.dispatchEvent(new CustomEvent('quiz-solver-button-clicked'));
                     }

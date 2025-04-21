@@ -139,8 +139,6 @@ export class QuizService {
      */
     async loadSettings() {
         try {
-            console.log('QuizService: Loading settings');
-            
             // Use the storage utility to get data
             const data = await getStorageData([
                 STORAGE_KEYS.API_KEY,
@@ -149,14 +147,6 @@ export class QuizService {
                 STORAGE_KEYS.DETECTION_HISTORY,
                 STORAGE_KEYS.SAVED_ELEMENTS
             ]);
-            
-            console.log('QuizService: Settings loaded:', 
-                { 
-                    hasApiKey: !!data[STORAGE_KEYS.API_KEY],
-                    autoDetect: data[STORAGE_KEYS.AUTO_DETECT],
-                    sensitivity: data[STORAGE_KEYS.DETECTION_SENSITIVITY]
-                }
-            );
             
             this.apiKey = data[STORAGE_KEYS.API_KEY];
             this.autoDetectEnabled = data[STORAGE_KEYS.AUTO_DETECT] !== undefined 
@@ -188,29 +178,23 @@ export class QuizService {
      * Sets up event listeners
      */
     setupListeners() {
-        console.log('QuizService: Setting up event listeners');
-        
         // Set UI manager button click handler
         this.uiManager.setButtonClickHandler(() => {
-            console.log('QuizService: Button click handler called');
             return this.handleSolveClick();
         });
         
         // Also listen for the custom event as a fallback
         document.addEventListener('quiz-solver-button-clicked', () => {
-            console.log('QuizService: Received quiz-solver-button-clicked event');
             this.handleSolveClick();
         });
         
         // Listen for element selection events
         document.addEventListener('quiz-element-selected', (e) => {
-            console.log('QuizService: Received quiz-element-selected event');
             this.handleElementSelected(e.detail.element);
         });
         
         // Listen for cancel selection events
         document.addEventListener('quiz-solver-cancel-selection', () => {
-            console.log('QuizService: Received quiz-solver-cancel-selection event');
             this.cancelSelectionMode();
         });
         
@@ -269,41 +253,31 @@ export class QuizService {
      */
     async handleSolveClick() {
         try {
-            console.log('QuizService: Handle solve button click');
-            
             // Check if we're already in selection mode
             if (this.selectionMode) {
-                console.log('QuizService: Already in selection mode, ignoring click');
                 return;
             }
             
             // Check if API key exists
             if (!this.apiKey) {
                 await this.loadSettings();
-                console.log('QuizService: API key after loading settings:', !!this.apiKey);
                 
                 if (!this.apiKey) {
-                    console.warn('API key missing. Showing error message.');
                     this.uiManager.showError('Please set your Gemini API key in the extension popup');
                     return;
                 }
             }
             
-            console.log('QuizService: API key found, proceeding with solve');
-            
             // Check if we have a saved element for this domain
             let savedElement = null;
             try {
                 savedElement = await this.uiManager.getSavedElement();
-                console.log('QuizService: Saved element retrieval result:', !!savedElement);
             } catch (error) {
-                console.error('Error retrieving saved element:', error);
                 // Continue without a saved element
             }
             
             if (savedElement) {
                 // Use the saved element
-                console.log('QuizService: Using saved element for domain:', window.location.hostname);
                 this.uiManager.showToast(`Using saved element for ${window.location.hostname}`, 'info');
                 
                 // Highlight the saved element temporarily to show which one is being used
@@ -315,7 +289,6 @@ export class QuizService {
             }
             
             // Enter selection mode
-            console.log('QuizService: No saved element found, entering selection mode');
             this.uiManager.showToast('Please select the element containing the quiz question', 'info');
             this.enterSelectionMode();
         } catch (error) {
@@ -346,8 +319,6 @@ export class QuizService {
      */
     async handleElementSelected(element) {
         try {
-            console.log('QuizService: Element selected:', element);
-            
             if (!element) {
                 this.uiManager.showError('No element was selected');
                 return;
@@ -355,7 +326,6 @@ export class QuizService {
             
             // Exit selection mode if we're still in it
             if (this.selectionMode) {
-                console.log('QuizService: Exiting selection mode');
                 this.selectionMode = false;
                 this.uiManager.disableSelectionMode(); // Make sure UI is updated
             }
@@ -365,7 +335,6 @@ export class QuizService {
             
             if (!this.apiKey) {
                 await this.loadSettings();
-                console.log('QuizService: API key after loading settings:', !!this.apiKey);
                 
                 if (!this.apiKey) {
                     this.uiManager.hideLoader();
@@ -383,19 +352,10 @@ export class QuizService {
                 return;
             }
             
-            console.log('QuizService: Extracted question:', question);
-            console.log('QuizService: Extracted options:', options);
-            
             // Save this element for future use
             try {
                 const saved = await this.uiManager.saveElementXPath(element);
-                if (saved) {
-                    console.log('QuizService: Element saved successfully for future use');
-                } else {
-                    console.warn('QuizService: Failed to save element for future use');
-                }
             } catch (error) {
-                console.error('Error saving element XPath:', error);
                 // Continue anyway, this is not critical
             }
             
@@ -425,419 +385,211 @@ export class QuizService {
     }
     
     /**
-     * Handles a selected question text
-     * @param {string} text - Selected question text
+     * Handles text selected by the user
+     * @param {string} text - Selected text
      */
     async handleSelectedQuestion(text) {
         try {
+            if (!text || text.trim().length < 5) {
+                this.uiManager.showError('Selected text is too short to be a question');
+                return;
+            }
+            
             this.uiManager.showLoader();
             
             if (!this.apiKey) {
                 await this.loadSettings();
+                
                 if (!this.apiKey) {
+                    this.uiManager.hideLoader();
                     this.uiManager.showError('Please set your API key in the extension popup');
                     return;
                 }
             }
             
-            // Try to detect options on the page
-            const options = this.detectOptionsOnPage();
+            // Try to identify the question and options in the selected text
+            const { question, options } = this.extractContentFromText(text);
             
-            if (!options || options.length === 0) {
-                this.uiManager.showError('No answer options detected on this page');
+            if (!question) {
+                this.uiManager.hideLoader();
+                this.uiManager.showError('Could not identify a question in the selected text');
                 return;
             }
             
-            // Process the question and get the answer
-            await this.processQuestionAndAnswer(text, options);
-        } catch (error) {
-            this.handleError('handleSelectedQuestion', error, 'Failed to solve selected question');
-        } finally {
-            this.cleanupAfterProcessing();
-        }
-    }
-    
-    /**
-     * Processes a question and gets an answer
-     * @param {string} question - Question text
-     * @param {Array<string>} options - Answer options
-     * @returns {Promise<string>} The answer
-     */
-    async processQuestionAndAnswer(question, options) {
-        // Save the detected question and options
-        this.lastDetectedQuestion = question;
-        this.lastDetectedOptions = options;
-        
-        // Detect academic subject for better context
-        this.detectSubject(question);
-        
-        // For code questions, try to evaluate the code directly
-        if (isCodeEvaluationQuestion(question)) {
-            const codeAnswer = evaluateCode(question, options);
-            if (codeAnswer) {
-                this.uiManager.highlightAnswer(codeAnswer, options);
-                this.saveToHistory(question, codeAnswer);
-                return codeAnswer;
+            // Get the answer from Gemini
+            const answer = await this.getAnswerFromGemini(question, options);
+            
+            this.uiManager.hideLoader();
+            
+            if (!answer) {
+                this.uiManager.showError('Could not get an answer from Gemini');
+                return;
             }
+            
+            // Show the results
+            this.uiManager.showResults(question, answer);
+            
+            // Add to detection history
+            this.addToDetectionHistory(question, answer, options);
+        } catch (error) {
+            this.uiManager.hideLoader();
+            this.handleError('handleSelectedQuestion', error, 'Failed to process selected text');
         }
-        
-        // If not a code question or code evaluation failed, use Gemini API
-        const geminiResponse = await fetchGeminiResponse(
-            question, 
-            options, 
-            this.apiKey, 
-            this.detectedSubject
-        );
-        
-        const answer = extractAnswer(geminiResponse, options);
-        
-        if (!answer) {
-            throw new Error('Could not determine the answer from Gemini response');
+    }
+    
+    /**
+     * Extracts question and options from selected text
+     * @param {string} text - Selected text
+     * @returns {Object} Extracted question and options
+     */
+    extractContentFromText(text) {
+        try {
+            // Split the text into lines
+            const lines = text.split('\n').filter(line => line.trim().length > 0);
+            
+            if (lines.length === 0) {
+                return { question: null, options: [] };
+            }
+            
+            // Assume the first line or paragraph is the question
+            let question = lines[0];
+            let options = [];
+            
+            // Check if the question is a real question
+            const isQuestionLine = line => 
+                QUESTION_PATTERNS.some(pattern => pattern.test(line)) ||
+                line.endsWith('?');
+            
+            // If first line doesn't look like a question, try to find one
+            if (!isQuestionLine(question) && lines.length > 1) {
+                const questionLineIndex = lines.findIndex(isQuestionLine);
+                if (questionLineIndex >= 0) {
+                    question = lines[questionLineIndex];
+                }
+            }
+            
+            // Try to identify options - look for lines that start with A., B., C., etc.
+            const optionRegex = /^([A-Z])[.)]\s*(.+)$/;
+            for (let i = 1; i < lines.length; i++) {
+                const match = lines[i].match(optionRegex);
+                if (match) {
+                    options.push(match[2].trim());
+                }
+            }
+            
+            // If we didn't find any options, try to find them differently
+            if (options.length === 0 && lines.length > 1) {
+                // Take all lines after the question as potential options
+                options = lines.slice(1).map(line => line.trim());
+            }
+            
+            // Detect subject based on the question
+            this.detectSubject(question);
+            
+            return { question, options };
+        } catch (error) {
+            console.error('Error extracting content from text:', error);
+            return { question: null, options: [] };
         }
-        
-        // Highlight the answer on the page
-        this.uiManager.highlightAnswer(answer, options);
-        
-        // Save to detection history
-        this.saveToHistory(question, answer);
-        
-        return answer;
     }
     
     /**
-     * Cleans up after processing
-     */
-    cleanupAfterProcessing() {
-        this.uiManager.hideLoader();
-        this.selectionMode = false;
-    }
-    
-    /**
-     * Handles errors in a consistent way
-     * @param {string} methodName - Name of the method where the error occurred
-     * @param {Error} error - Error object
-     * @param {string} defaultMessage - Default message if error doesn't have one
-     */
-    handleError(methodName, error, defaultMessage) {
-        console.error(`Error in ${methodName}:`, error);
-        this.uiManager.showError(error.message || defaultMessage);
-    }
-    
-    /**
-     * Extracts content from an element
+     * Extracts question and options from an element
      * @param {Element} element - Element to extract from
-     * @returns {Object} Object with question and options
+     * @returns {Object} Extracted question and options
      */
     extractContentFromElement(element) {
-        if (!element) return { question: null, options: [] };
-        
-        let question = null;
-        let options = [];
-        
-        // Try to find a question within the element
-        // First, look for elements that match common question selectors
-        const selectors = this.siteSpecificSelectors ? 
-            [this.siteSpecificSelectors.QUESTION, ...QUESTION_SELECTORS] : 
-            QUESTION_SELECTORS;
+        try {
+            // Try to find the question within the element
+            let questionElement = null;
+            let question = '';
             
-        for (const selector of selectors) {
-            if (!selector) continue;
-            
-            try {
-                const questionElement = element.querySelector(selector);
-                if (questionElement) {
-                    question = questionElement.textContent.trim();
-                    break;
-                }
-            } catch (e) {
-                // Skip invalid selector
-            }
-        }
-        
-        // If no question found with selectors, try to find text that looks like a question
-        if (!question) {
-            // Get all text nodes within the element
-            const textNodes = getAllTextNodes(element);
-            
-            for (const node of textNodes) {
-                const text = node.textContent.trim();
-                if (text.length > 10 && this.isLikelyQuestion(text)) {
-                    question = text;
-                    break;
+            // First, try site-specific selectors
+            if (this.siteSpecificSelectors && this.siteSpecificSelectors.QUESTION) {
+                const specificQuestionElement = element.querySelector(this.siteSpecificSelectors.QUESTION);
+                if (specificQuestionElement) {
+                    questionElement = specificQuestionElement;
+                    question = specificQuestionElement.textContent.trim();
                 }
             }
             
-            // If still no question found, use the first substantial text as the question
+            // If no question found, try general selectors
             if (!question) {
-                for (const node of textNodes) {
-                    const text = node.textContent.trim();
-                    if (text.length > 20) {
-                        question = text;
+                for (const selector of QUESTION_SELECTORS) {
+                    const elements = element.querySelectorAll(selector);
+                    if (elements.length > 0) {
+                        questionElement = elements[0];
+                        question = elements[0].textContent.trim();
                         break;
                     }
                 }
             }
-        }
-        
-        // Try to find options within the element
-        // First, look for elements that match common option selectors
-        const optionSelectors = this.siteSpecificSelectors ? 
-            [this.siteSpecificSelectors.OPTION, ...OPTION_SELECTORS] : 
-            OPTION_SELECTORS;
             
-        for (const selector of optionSelectors) {
-            if (!selector) continue;
-            
-            try {
-                const optionElements = element.querySelectorAll(selector);
-                if (optionElements.length >= 2) {
-                    options = Array.from(optionElements)
-                        .map(el => el.textContent.trim())
-                        .filter(Boolean);
-                    break;
+            // If still no question, try to use the element itself
+            if (!question && element.textContent) {
+                // Try to find lines that look like questions
+                const lines = element.textContent.split('\n').filter(line => line.trim().length > 0);
+                for (const line of lines) {
+                    if (QUESTION_PATTERNS.some(pattern => pattern.test(line)) || line.endsWith('?')) {
+                        question = line.trim();
+                        break;
+                    }
                 }
-            } catch (e) {
-                // Skip invalid selector
-            }
-        }
-        
-        // If no options found with selectors, try to find list items or labeled inputs
-        if (options.length < 2) {
-            // Try list items
-            const listItems = element.querySelectorAll('li');
-            if (listItems.length >= 2) {
-                options = Array.from(listItems)
-                    .map(el => el.textContent.trim())
-                    .filter(Boolean);
-            }
-            
-            // Try radio buttons and checkboxes
-            if (options.length < 2) {
-                const inputs = element.querySelectorAll('input[type="radio"], input[type="checkbox"]');
-                if (inputs.length >= 2) {
-                    options = Array.from(inputs)
-                        .map(input => {
-                            const label = this.uiManager.findAssociatedLabel(input);
-                            return label ? label.textContent.trim() : null;
-                        })
-                        .filter(Boolean);
-                }
-            }
-            
-            // Try divs or spans with similar classes or structure
-            if (options.length < 2) {
-                const potentialOptions = this.findPotentialOptions(element);
-                if (potentialOptions.length >= 2) {
-                    options = potentialOptions;
-                }
-            }
-        }
-        
-        return { question, options };
-    }
-    
-    /**
-     * Finds potential answer options based on similar structure
-     * @param {Element} element - Element to search within
-     * @returns {Array<string>} Potential options
-     */
-    findPotentialOptions(element) {
-        const options = [];
-        const allElements = element.querySelectorAll('*');
-        const elementsByClass = {};
-        
-        // Group elements by class
-        for (const el of allElements) {
-            if (el.className) {
-                const classes = el.className.split(' ');
-                for (const cls of classes) {
-                    if (!elementsByClass[cls]) elementsByClass[cls] = [];
-                    elementsByClass[cls].push(el);
-                }
-            }
-        }
-        
-        // Find classes with multiple elements (potential options)
-        for (const cls in elementsByClass) {
-            const elements = elementsByClass[cls];
-            if (elements.length >= 2 && elements.length <= 10) {  // Reasonable number for options
-                // Check if these elements have similar structure
-                const firstEl = elements[0];
-                const firstElText = firstEl.textContent.trim();
                 
-                // Skip if text is too short
-                if (firstElText.length < 2) continue;
-                
-                // Check if all elements have text
-                const allHaveText = elements.every(el => el.textContent.trim().length > 0);
-                if (allHaveText) {
-                    // Extract text from these elements
-                    const texts = elements.map(el => el.textContent.trim());
-                    
-                    // If we found potential options, use them
-                    if (texts.length >= 2) {
-                        return texts;
+                // If still no question, use the first line or the whole text
+                if (!question) {
+                    if (lines.length > 0) {
+                        question = lines[0].trim();
+                    } else {
+                        question = element.textContent.trim();
                     }
                 }
             }
-        }
-        
-        return options;
-    }
-    
-    /**
-     * Checks if text is likely a question
-     * @param {string} text - Text to check
-     * @returns {boolean} Whether the text is likely a question
-     */
-    isLikelyQuestion(text) {
-        // Check if the text matches any question patterns
-        for (const pattern of QUESTION_PATTERNS) {
-            if (pattern.test(text)) {
-                return true;
-            }
-        }
-        
-        // Check for numbered questions (e.g., "1. What is...")
-        if (/^\d+[\.\)]\s+.{10,}/.test(text)) {
-            return true;
-        }
-        
-        // Check for common question phrases
-        const lowerText = text.toLowerCase();
-        const questionPhrases = [
-            'choose the', 'select the', 'identify the', 
-            'which of the following', 'which one', 
-            'true or false', 'correct answer'
-        ];
-        
-        for (const phrase of questionPhrases) {
-            if (lowerText.includes(phrase)) {
-                return true;
-            }
-        }
-        
-        // Medium and high sensitivity: check for question mark
-        if (this.detectionSensitivity !== 'low' && text.includes('?')) {
-            return true;
-        }
-        
-        return false;
-    }
-    
-    /**
-     * Detects question subject
-     * @param {string} questionText - Question text
-     * @returns {string|null} Detected subject or null
-     */
-    detectSubject(questionText) {
-        if (!questionText) return null;
-        
-        const text = questionText.toLowerCase();
-        
-        for (const subject in SUBJECT_PATTERNS) {
-            const patterns = SUBJECT_PATTERNS[subject];
-            for (const pattern of patterns) {
-                if (pattern.test(text)) {
-                    this.detectedSubject = subject;
-                    return subject;
+            
+            // Try to find the options
+            let options = [];
+            
+            // First, try site-specific selectors
+            if (this.siteSpecificSelectors && this.siteSpecificSelectors.OPTION) {
+                const specificOptionElements = element.querySelectorAll(this.siteSpecificSelectors.OPTION);
+                if (specificOptionElements.length > 0) {
+                    options = Array.from(specificOptionElements).map(el => el.textContent.trim());
                 }
             }
-        }
-        
-        this.detectedSubject = null;
-        return null;
-    }
-    
-    /**
-     * Saves a question and answer to history
-     * @param {string} question - Question text
-     * @param {string} answer - Answer text
-     */
-    async saveToHistory(question, answer) {
-        if (!question || !answer) return;
-        
-        // Create history entry
-        const historyEntry = {
-            question: question,
-            answer: answer,
-            timestamp: new Date().toISOString(),
-            url: window.location.href,
-            subject: this.detectedSubject
-        };
-        
-        // Add to local history
-        this.detectionHistory.unshift(historyEntry);
-        
-        // Keep only the most recent 50 entries
-        if (this.detectionHistory.length > 50) {
-            this.detectionHistory = this.detectionHistory.slice(0, 50);
-        }
-        
-        // Save to storage
-        await saveStorageData({
-            [STORAGE_KEYS.DETECTION_HISTORY]: this.detectionHistory
-        });
-    }
-    
-    /**
-     * Detects questions on the page
-     * @returns {boolean} Whether questions were found
-     */
-    detectQuestionsOnPage() {
-        // Implementation details left as an exercise for brevity
-        // This would detect questions using similar logic to extractContentFromElement
-        // but scanning the entire page instead of a specific element
-        return false;
-    }
-    
-    /**
-     * Detects options on the page
-     * @returns {Array<string>} Detected options
-     */
-    detectOptionsOnPage() {
-        const options = [];
-        
-        // First try site-specific selectors if available
-        if (this.siteSpecificSelectors) {
-            const optionElements = document.querySelectorAll(this.siteSpecificSelectors.OPTION);
-            if (optionElements.length > 0) {
-                return Array.from(optionElements)
-                    .map(el => el.textContent.trim())
-                    .filter(Boolean);
-            }
-        }
-        
-        // Try common selectors
-        for (const selector of OPTION_SELECTORS) {
-            const elements = document.querySelectorAll(selector);
-            if (elements.length >= 2) {
-                return Array.from(elements)
-                    .map(el => el.textContent.trim())
-                    .filter(Boolean);
-            }
-        }
-        
-        // Try to find options based on common patterns
-        const optionPatterns = [
-            /^[A-D][\.\)]\s+.+/,  // A. Option text
-            /^[1-4][\.\)]\s+.+/,  // 1. Option text
-            /^[a-d][\.\)]\s+.+/   // a. Option text
-        ];
-        
-        const allElements = document.querySelectorAll('*');
-        
-        for (const element of allElements) {
-            const text = element.textContent.trim();
-            for (const pattern of optionPatterns) {
-                if (pattern.test(text)) {
-                    options.push(text);
-                    break;
+            
+            // If no options found, try general selectors
+            if (options.length === 0) {
+                for (const selector of OPTION_SELECTORS) {
+                    const elements = element.querySelectorAll(selector);
+                    if (elements.length > 0) {
+                        options = Array.from(elements).map(el => el.textContent.trim());
+                        break;
+                    }
                 }
             }
+            
+            // If still no options, try to extract from text
+            if (options.length === 0 && element.textContent) {
+                // Try to find lines that look like options (A. Option 1, B. Option 2, etc.)
+                const lines = element.textContent.split('\n').filter(line => line.trim().length > 0);
+                const optionRegex = /^([A-Z])[.)]\s*(.+)$/;
+                
+                for (const line of lines) {
+                    const match = line.trim().match(optionRegex);
+                    if (match) {
+                        options.push(match[2].trim());
+                    }
+                }
+            }
+            
+            // Detect subject based on the question
+            this.detectSubject(question);
+            
+            return { question, options };
+        } catch (error) {
+            console.error('Error extracting content from element:', error);
+            return { question: null, options: [] };
         }
-        
-        return options;
     }
     
     /**
@@ -848,23 +600,16 @@ export class QuizService {
      */
     async getAnswerFromGemini(question, options) {
         try {
-            console.log('QuizService: Getting answer from Gemini for question:', question);
-            
             // Check if this is a code evaluation question
             const isCodeQuestion = isCodeEvaluationQuestion(question);
-            console.log('QuizService: Is code question:', isCodeQuestion);
             
             // If it's a code question, try to evaluate it directly first
             if (isCodeQuestion) {
-                console.log('QuizService: Attempting direct code evaluation');
                 const codeAnswer = evaluateCode(question, options);
                 
                 if (codeAnswer) {
-                    console.log('QuizService: Code evaluation successful, answer:', codeAnswer);
                     return codeAnswer;
                 }
-                
-                console.log('QuizService: Direct code evaluation failed, falling back to Gemini');
             }
             
             // If not a code question or code evaluation failed, use Gemini API
@@ -941,5 +686,135 @@ export class QuizService {
             element.style.backgroundColor = originalBackground;
             element.style.transition = originalTransition;
         }, 2000);
+    }
+    
+    /**
+     * Detects the subject of a question
+     * @param {string} question - Question text
+     * @returns {string|null} Detected subject or null
+     */
+    detectSubject(question) {
+        if (!question) return null;
+        
+        const text = question.toLowerCase();
+        
+        for (const [subject, patterns] of Object.entries(SUBJECT_PATTERNS)) {
+            for (const pattern of patterns) {
+                if (pattern.test(text)) {
+                    this.detectedSubject = subject;
+                    return subject;
+                }
+            }
+        }
+        
+        this.detectedSubject = 'general';
+        return 'general';
+    }
+    
+    /**
+     * Detects questions on the page automatically
+     */
+    async detectQuestionsOnPage() {
+        try {
+            if (!this.autoDetectEnabled) return;
+            
+            // Check if we have an API key
+            if (!this.apiKey) {
+                await this.loadSettings();
+                if (!this.apiKey) return; // No API key, can't continue
+            }
+            
+            // Get all text nodes
+            const textNodes = getAllTextNodes(document.body);
+            
+            // Find potential questions
+            const potentialQuestions = [];
+            
+            for (const node of textNodes) {
+                const text = node.textContent.trim();
+                if (text.length > 10 && (text.endsWith('?') || QUESTION_PATTERNS.some(p => p.test(text)))) {
+                    potentialQuestions.push({
+                        node,
+                        text,
+                        element: node.parentElement
+                    });
+                }
+            }
+            
+            // If no potential questions found, try querying common selectors
+            if (potentialQuestions.length === 0) {
+                for (const selector of QUESTION_SELECTORS) {
+                    const elements = document.querySelectorAll(selector);
+                    for (const element of elements) {
+                        const text = element.textContent.trim();
+                        if (text.length > 10) {
+                            potentialQuestions.push({
+                                node: element.childNodes[0],
+                                text,
+                                element
+                            });
+                        }
+                    }
+                }
+            }
+            
+            // Sort by likelihood of being a question
+            potentialQuestions.sort((a, b) => {
+                // Give higher score to elements that:
+                // 1. End with a question mark
+                // 2. Contain certain keywords
+                // 3. Are closer to the top of the page
+                
+                const aScore = (a.text.endsWith('?') ? 10 : 0) + 
+                               (QUESTION_PATTERNS.some(p => p.test(a.text)) ? 5 : 0) -
+                               (a.element.getBoundingClientRect().top / 1000);
+                               
+                const bScore = (b.text.endsWith('?') ? 10 : 0) + 
+                               (QUESTION_PATTERNS.some(p => p.test(b.text)) ? 5 : 0) -
+                               (b.element.getBoundingClientRect().top / 1000);
+                               
+                return bScore - aScore;
+            });
+            
+            // Process the most likely question
+            if (potentialQuestions.length > 0) {
+                const bestCandidate = potentialQuestions[0];
+                
+                // Prevent repeated detection of the same question
+                if (this.lastDetectedQuestion === bestCandidate.text) {
+                    return;
+                }
+                
+                this.lastDetectedQuestion = bestCandidate.text;
+                
+                // Extract content from the parent element
+                const { question, options } = this.extractContentFromElement(bestCandidate.element);
+                
+                if (question && this.detectionSensitivity !== 'low') {
+                    this.uiManager.showToast('Question detected: ' + question.substring(0, 30) + '...', 'info');
+                    
+                    // Save the options
+                    this.lastDetectedOptions = options;
+                    
+                    // If sensitivity is high, automatically solve
+                    if (this.detectionSensitivity === 'high') {
+                        setTimeout(() => this.handleElementSelected(bestCandidate.element), 1000);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error detecting questions:', error);
+        }
+    }
+    
+    /**
+     * Handles errors
+     * @param {string} context - Error context
+     * @param {Error} error - Error object
+     * @param {string} userMessage - Message to show to the user
+     */
+    handleError(context, error, userMessage) {
+        console.error(`Error in ${context}:`, error);
+        this.uiManager.showError(userMessage || 'An error occurred');
     }
 }

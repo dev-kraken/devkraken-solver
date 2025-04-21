@@ -25,11 +25,6 @@ const BRANDING = {
  * @returns {Promise<string>} Raw response from Gemini
  */
 export async function fetchGeminiResponse(question, options, apiKey, subject = null) {
-    console.log('Gemini API: Fetching response for question:', question);
-    console.log('Gemini API: Options:', options);
-    console.log('Gemini API: Has API key:', !!apiKey);
-    console.log('Gemini API: Subject:', subject);
-    
     if (!apiKey) {
         throw new Error('API key not set');
     }
@@ -43,10 +38,8 @@ export async function fetchGeminiResponse(question, options, apiKey, subject = n
     
     // Build the prompt
     const prompt = buildPrompt(question, safeOptions, subject);
-    console.log('Gemini API: Generated prompt:', prompt);
     
     try {
-        console.log('Gemini API: Sending request to API');
         const response = await fetch(`${API_ENDPOINT}?key=${apiKey}`, {
             method: 'POST',
             headers: {
@@ -92,14 +85,12 @@ export async function fetchGeminiResponse(question, options, apiKey, subject = n
         }
         
         const data = await response.json();
-        console.log('Gemini API: Response received');
         
         if (!data.candidates || data.candidates.length === 0) {
             throw new Error('No response from Gemini API');
         }
         
         const textResponse = data.candidates[0].content.parts[0].text;
-        console.log('Gemini API: Raw response:', textResponse);
         return textResponse;
     } catch (error) {
         console.error('Error fetching from Gemini API:', error);
