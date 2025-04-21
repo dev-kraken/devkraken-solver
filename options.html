@@ -1,18 +1,129 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Solver with Gemini - Options</title>
     <link rel="stylesheet" href="css/options.css">
+    <style>
+        .branding {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .branding a {
+            color: #8e24aa;
+            text-decoration: none;
+        }
+        
+        .branding a:hover {
+            text-decoration: underline;
+        }
+        
+        .settings-container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .saved-elements-list {
+            margin-top: 15px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .saved-element-item {
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .saved-element-item:last-child {
+            border-bottom: none;
+        }
+        
+        .delete-btn {
+            background-color: #e53935;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        
+        .delete-btn:hover {
+            background-color: #d32f2f;
+        }
+    </style>
 </head>
 <body>
 <div class="settings-container">
-    <h1>Gemini API Settings</h1>
-    <div class="form-group">
-        <label for="apiKey">API Key:</label>
-        <input type="password" id="apiKey" class="form-input">
+    <h1>Quiz Solver with Gemini - Options</h1>
+    
+    <div class="section">
+        <h2>API Settings</h2>
+        <div class="form-group">
+            <label for="apiKey">Gemini API Key:</label>
+            <input type="password" id="apiKey" class="form-input">
+        </div>
+        <button id="save" class="btn-primary">Save API Key</button>
+        <div id="status" class="status-message"></div>
     </div>
-    <button id="save" class="btn-primary">Save Settings</button>
-    <div id="status" class="status-message"></div>
+    
+    <div class="section">
+        <h2>Detection Settings</h2>
+        <div class="form-group">
+            <label for="autoDetect">Auto-detect questions:</label>
+            <input type="checkbox" id="autoDetect" checked>
+        </div>
+        
+        <div class="form-group">
+            <label for="sensitivity">Detection sensitivity:</label>
+            <select id="sensitivity" class="form-input">
+                <option value="low">Low - Only detect obvious questions</option>
+                <option value="medium" selected>Medium - Balance between accuracy and coverage</option>
+                <option value="high">High - Try to detect more questions (may have false positives)</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>Saved Elements</h2>
+        <p>These are the websites where you've selected specific elements for questions and answers.</p>
+        
+        <div id="savedElementsList" class="saved-elements-list">
+            <!-- Elements will be populated by JavaScript -->
+            <div class="saved-element-item empty-message">No saved elements yet</div>
+        </div>
+        
+        <button id="clearAllSavedElements" class="btn-secondary">Clear All Saved Elements</button>
+    </div>
+    
+    <div class="section">
+        <h2>History</h2>
+        <button id="clearHistory" class="btn-secondary">Clear Quiz History</button>
+        <p class="info-text">This will remove all previously solved quizzes from your history.</p>
+    </div>
+    
+    <div class="branding">
+        <p> 2025 <a href="https://github.com/dev-kraken/devkraken-solver" target="_blank">DevKraken</a>. All rights reserved.</p>
+        <p class="developer-info">Developed by <a href="https://github.com/dev-kraken" target="_blank">Dev Kraken</a> | <a href="mailto:soman@devkraken.com">soman@devkraken.com</a></p>
+    </div>
 </div>
-<script src="js/options.js"></script>
+<script src="js/options.js" type="module"></script>
 </body>
 </html>

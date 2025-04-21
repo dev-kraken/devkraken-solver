@@ -1,4 +1,4 @@
-import { CLASSES, TIME_CONSTANTS } from '../constants.js';
+import { CLASSES, TIME_CONSTANTS, BRANDING } from '../constants.js';
 
 export class UIManager {
     constructor() {
@@ -10,11 +10,24 @@ export class UIManager {
         this.solveButton = null;
         this.dragOffset = { x: 0, y: 0 };
         this.isDragging = false;
+        this.isSelectionMode = false;
+        this.selectedElement = null;
+        
+        // Bind event handlers to preserve 'this' context
+        this.boundHandleDocumentClick = this.handleDocumentClick.bind(this);
+        this.boundHandleMouseOver = this.handleMouseOver.bind(this);
+        this.boundHandleMouseOut = this.handleMouseOut.bind(this);
     }
 
     initialize() {
-        this.createSolveButton();
-        this.createLoader();
+        try {
+            this.createSolveButton();
+            this.createLoader();
+            return Promise.resolve();
+        } catch (error) {
+            console.error('Error initializing UIManager:', error);
+            return Promise.reject(error);
+        }
     }
 
     createSolveButton() {
@@ -34,7 +47,7 @@ export class UIManager {
         this.solveButton.style.right = '20px';
         this.solveButton.style.zIndex = '9999';
         this.solveButton.style.padding = '10px 15px';
-        this.solveButton.style.backgroundColor = '#8e24aa';
+        this.solveButton.style.backgroundColor = BRANDING.COLORS.PRIMARY;
         this.solveButton.style.color = 'white';
         this.solveButton.style.border = 'none';
         this.solveButton.style.borderRadius = '20px';
@@ -47,6 +60,18 @@ export class UIManager {
         this.solveButton.style.justifyContent = 'center';
         this.solveButton.style.transition = 'all 0.3s ease';
         
+        // Add DevKraken branding
+        const brandingSpan = document.createElement('span');
+        brandingSpan.style.fontSize = '9px';
+        brandingSpan.style.opacity = '0.8';
+        brandingSpan.style.position = 'absolute';
+        brandingSpan.style.bottom = '-12px';
+        brandingSpan.style.right = '10px';
+        brandingSpan.style.color = 'white';
+        brandingSpan.style.textShadow = '0 1px 2px rgba(0,0,0,0.3)';
+        brandingSpan.textContent = BRANDING.TAGLINE;
+        this.solveButton.appendChild(brandingSpan);
+        
         // Add hover effect
         this.solveButton.onmouseover = () => {
             this.solveButton.style.backgroundColor = '#aa3ad0';
@@ -54,7 +79,7 @@ export class UIManager {
         };
         
         this.solveButton.onmouseout = () => {
-            this.solveButton.style.backgroundColor = '#8e24aa';
+            this.solveButton.style.backgroundColor = BRANDING.COLORS.PRIMARY;
             this.solveButton.style.transform = 'scale(1)';
         };
         
@@ -172,7 +197,7 @@ export class UIManager {
         const header = document.createElement('div');
         header.className = 'quiz-solver-panel-header';
         header.style.padding = '10px 15px';
-        header.style.backgroundColor = '#8e24aa';
+        header.style.backgroundColor = BRANDING.COLORS.PRIMARY;
         header.style.color = 'white';
         header.style.fontWeight = 'bold';
         header.style.display = 'flex';
@@ -180,6 +205,14 @@ export class UIManager {
         header.style.alignItems = 'center';
         header.style.cursor = 'move';
         header.textContent = 'Gemini AI Answer';
+        
+        // Add DevKraken branding
+        const brandingSpan = document.createElement('span');
+        brandingSpan.style.fontSize = '10px';
+        brandingSpan.style.opacity = '0.8';
+        brandingSpan.style.marginLeft = '10px';
+        brandingSpan.textContent = BRANDING.TAGLINE;
+        header.appendChild(brandingSpan);
         
         // Add event listeners for dragging
         header.addEventListener('mousedown', (e) => this.startDragging(e));
@@ -321,72 +354,101 @@ export class UIManager {
     }
 
     showToast(message, type = 'info') {
-        // Remove existing toast if any
-        if (this.toastElement) {
-            this.toastElement.remove();
-        }
-        
-        this.toastElement = document.createElement('div');
-        this.toastElement.className = 'quiz-solver-toast';
-        this.toastElement.style.position = 'fixed';
-        this.toastElement.style.bottom = '80px';
-        this.toastElement.style.right = '20px';
-        this.toastElement.style.padding = '12px 20px';
-        this.toastElement.style.borderRadius = '4px';
-        this.toastElement.style.color = 'white';
-        this.toastElement.style.fontFamily = 'Arial, sans-serif';
-        this.toastElement.style.zIndex = '10001';
-        this.toastElement.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-        this.toastElement.style.maxWidth = '300px';
-        this.toastElement.style.wordBreak = 'break-word';
-        
-        // Set style based on toast type
-        if (type === 'success') {
-            this.toastElement.style.backgroundColor = '#43a047';
-            message = '✓ ' + message;
-        } else if (type === 'error') {
-            this.toastElement.style.backgroundColor = '#e53935';
-            message = '✗ ' + message;
-        } else {
-            this.toastElement.style.backgroundColor = '#1e88e5';
-            message = 'ℹ ' + message;
-        }
-        
-        this.toastElement.textContent = message;
-        document.body.appendChild(this.toastElement);
-        
-        // Auto-remove toast after some time
-        setTimeout(() => {
-            if (this.toastElement) {
-                this.toastElement.style.opacity = '0';
-                this.toastElement.style.transform = 'translateY(20px)';
-                this.toastElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-                
-                setTimeout(() => {
-                    if (this.toastElement) {
-                        this.toastElement.remove();
-                        this.toastElement = null;
-                    }
-                }, 300);
-            }
-        }, TIME_CONSTANTS.NOTIFICATION_DURATION);
-    }
-
-    findElementWithXPath(xpath) {
         try {
-            return document.evaluate(
-                xpath, 
-                document, 
-                null, 
-                XPathResult.FIRST_ORDERED_NODE_TYPE, 
-                null
-            ).singleNodeValue;
-        } catch (e) {
-            console.error('XPath evaluation error:', e);
-            return null;
+            // Remove existing toast if any
+            if (this.toastElement) {
+                this.toastElement.remove();
+            }
+            
+            this.toastElement = document.createElement('div');
+            this.toastElement.className = 'quiz-solver-toast';
+            this.toastElement.style.position = 'fixed';
+            this.toastElement.style.bottom = '80px';
+            this.toastElement.style.right = '20px';
+            this.toastElement.style.padding = '12px 20px';
+            this.toastElement.style.borderRadius = '4px';
+            this.toastElement.style.color = 'white';
+            this.toastElement.style.fontFamily = 'Arial, sans-serif';
+            this.toastElement.style.zIndex = '10001';
+            this.toastElement.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+            this.toastElement.style.maxWidth = '300px';
+            this.toastElement.style.wordBreak = 'break-word';
+            
+            // Set style based on toast type
+            if (type === 'success') {
+                this.toastElement.style.backgroundColor = BRANDING.COLORS.SUCCESS;
+                message = '✓ ' + message;
+            } else if (type === 'error') {
+                this.toastElement.style.backgroundColor = BRANDING.COLORS.ERROR;
+                message = '✗ ' + message;
+            } else {
+                this.toastElement.style.backgroundColor = BRANDING.COLORS.SECONDARY;
+                message = 'ℹ ' + message;
+            }
+            
+            this.toastElement.textContent = message;
+            document.body.appendChild(this.toastElement);
+            
+            // Auto-remove toast after some time
+            setTimeout(() => {
+                if (this.toastElement) {
+                    this.toastElement.style.opacity = '0';
+                    this.toastElement.style.transform = 'translateY(20px)';
+                    this.toastElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                    
+                    setTimeout(() => {
+                        if (this.toastElement) {
+                            this.toastElement.remove();
+                            this.toastElement = null;
+                        }
+                    }, 300);
+                }
+            }, TIME_CONSTANTS.NOTIFICATION_DURATION);
+        } catch (error) {
+            console.error('Error showing toast:', error);
         }
     }
 
+    findAssociatedLabel(input) {
+        // First try by 'for' attribute
+        if (input.id) {
+            const label = document.querySelector(`label[for="${input.id}"]`);
+            if (label) return label;
+        }
+        
+        // Then try by parent-child relationship
+        let parent = input.parentElement;
+        while (parent) {
+            if (parent.tagName === 'LABEL') return parent;
+            
+            const label = parent.querySelector('label');
+            if (label) return label;
+            
+            parent = parent.parentElement;
+            if (!parent || parent === document.body) break;
+        }
+        
+        // Try sibling elements
+        let sibling = input.nextElementSibling;
+        if (sibling && (sibling.tagName === 'LABEL' || sibling.tagName === 'SPAN')) {
+            return sibling;
+        }
+        
+        return null;
+    }
+
+    calculateSimilarity(str1, str2) {
+        const words1 = str1.toLowerCase().split(/\W+/).filter(Boolean);
+        const words2 = str2.toLowerCase().split(/\W+/).filter(Boolean);
+        
+        let matchCount = 0;
+        for (const word of words1) {
+            if (words2.includes(word)) matchCount++;
+        }
+        
+        return matchCount / Math.max(words1.length, words2.length);
+    }
+    
     highlightAnswer(answer, options) {
         if (!answer || !options || options.length === 0) {
             this.showError('Could not determine the answer');
@@ -478,46 +540,6 @@ export class UIManager {
         // Return placeholder if not available
         return "Question analyzed by Gemini";
     }
-    
-    findAssociatedLabel(input) {
-        // First try by 'for' attribute
-        if (input.id) {
-            const label = document.querySelector(`label[for="${input.id}"]`);
-            if (label) return label;
-        }
-        
-        // Then try by parent-child relationship
-        let parent = input.parentElement;
-        while (parent) {
-            if (parent.tagName === 'LABEL') return parent;
-            
-            const label = parent.querySelector('label');
-            if (label) return label;
-            
-            parent = parent.parentElement;
-            if (!parent || parent === document.body) break;
-        }
-        
-        // Try sibling elements
-        let sibling = input.nextElementSibling;
-        if (sibling && (sibling.tagName === 'LABEL' || sibling.tagName === 'SPAN')) {
-            return sibling;
-        }
-        
-        return null;
-    }
-    
-    calculateSimilarity(str1, str2) {
-        const words1 = str1.toLowerCase().split(/\W+/).filter(Boolean);
-        const words2 = str2.toLowerCase().split(/\W+/).filter(Boolean);
-        
-        let matchCount = 0;
-        for (const word of words1) {
-            if (words2.includes(word)) matchCount++;
-        }
-        
-        return matchCount / Math.max(words1.length, words2.length);
-    }
 
     highlightElement(element) {
         if (!element) return;
@@ -553,6 +575,287 @@ export class UIManager {
                     // Some pages prevent programmatic selection
                 }
             }
+        }
+    }
+    
+    enableSelectionMode() {
+        // Make sure the button exists, create it if it doesn't
+        if (!this.solveButton) {
+            this.createSolveButton();
+        }
+        
+        this.isSelectionMode = true;
+        this.solveButton.innerHTML = '<span>Click on question container</span>';
+        this.solveButton.style.backgroundColor = BRANDING.COLORS.ERROR;
+        
+        // Show a toast notification with instructions
+        this.showToast('Click on the element containing the question and answers', 'info');
+        
+        // Add a temporary overlay to indicate selection mode
+        this.createSelectionOverlay();
+        
+        // Add click event listener to the document
+        document.addEventListener('click', this.boundHandleDocumentClick, true);
+        
+        // Add mouseover event to highlight potential elements
+        document.addEventListener('mouseover', this.boundHandleMouseOver);
+        document.addEventListener('mouseout', this.boundHandleMouseOut);
+    }
+    
+    disableSelectionMode() {
+        // Make sure the button exists
+        if (!this.solveButton) {
+            return;
+        }
+        
+        this.isSelectionMode = false;
+        this.solveButton.innerHTML = '<span>Solve with Gemini</span>';
+        this.solveButton.style.backgroundColor = BRANDING.COLORS.PRIMARY;
+        
+        // Remove overlay
+        const overlay = document.getElementById('quiz-solver-selection-overlay');
+        if (overlay) overlay.remove();
+        
+        // Remove event listeners
+        document.removeEventListener('click', this.boundHandleDocumentClick, true);
+        document.removeEventListener('mouseover', this.boundHandleMouseOver);
+        document.removeEventListener('mouseout', this.boundHandleMouseOut);
+    }
+    
+    createSelectionOverlay() {
+        const overlay = document.createElement('div');
+        overlay.id = 'quiz-solver-selection-overlay';
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100%';
+        overlay.style.height = '100%';
+        overlay.style.backgroundColor = 'rgba(142, 36, 170, 0.1)';
+        overlay.style.zIndex = '9990';
+        overlay.style.pointerEvents = 'none';
+        document.body.appendChild(overlay);
+    }
+    
+    handleDocumentClick(event) {
+        // Check if we're still in selection mode
+        if (!this.isSelectionMode) {
+            return;
+        }
+        
+        // Prevent default behavior
+        event.preventDefault();
+        event.stopPropagation();
+        
+        // Ignore clicks on extension elements
+        if (event.target.id === 'solveQuizBtn' || 
+            event.target.closest('#solveQuizBtn') ||
+            event.target.closest('#quiz-solver-selection-overlay') ||
+            event.target.closest('#quizSolverLoader') ||
+            event.target.closest('.quiz-solver-toast') ||
+            event.target.closest('.quiz-solver-panel')) {
+            return;
+        }
+        
+        // Get the clicked element
+        const element = event.target;
+        
+        // Store the selected element
+        this.selectedElement = element;
+        
+        // Disable selection mode
+        this.disableSelectionMode();
+        
+        // Highlight the selected element temporarily
+        const originalBackground = element.style.backgroundColor;
+        element.style.backgroundColor = 'rgba(142, 36, 170, 0.2)';
+        
+        setTimeout(() => {
+            element.style.backgroundColor = originalBackground;
+            
+            // Notify that an element has been selected
+            document.dispatchEvent(new CustomEvent('quiz-element-selected', {
+                detail: { element: this.selectedElement }
+            }));
+        }, 500);
+        
+        return false;
+    }
+    
+    handleMouseOver(event) {
+        if (!this.isSelectionMode) return;
+        
+        // Ignore extension elements
+        if (event.target.id === 'solveQuizBtn' || 
+            event.target.closest('#solveQuizBtn') ||
+            event.target.closest('#quiz-solver-selection-overlay') ||
+            event.target.closest('#quizSolverLoader') ||
+            event.target.closest('.quiz-solver-toast') ||
+            event.target.closest('.quiz-solver-panel')) {
+            return;
+        }
+        
+        // Add a highlight effect
+        event.target.style.outline = '2px dashed #8e24aa';
+        event.target.style.backgroundColor = 'rgba(142, 36, 170, 0.1)';
+    }
+    
+    handleMouseOut(event) {
+        if (!this.isSelectionMode) return;
+        
+        // Remove the highlight effect
+        event.target.style.outline = '';
+        event.target.style.backgroundColor = '';
+    }
+    
+    getSelectedElement() {
+        return this.selectedElement;
+    }
+
+    generateXPath(element) {
+        if (!element) return null;
+        
+        try {
+            // Try to generate a unique ID-based XPath first
+            if (element.id) {
+                return `//*[@id="${element.id}"]`;
+            }
+            
+            // Try to generate a class-based XPath if it has a unique class
+            if (element.className && typeof element.className === 'string') {
+                const classes = element.className.split(' ').filter(Boolean);
+                if (classes.length > 0) {
+                    const classXPath = `//*[contains(@class, "${classes[0]}")]`;
+                    // Check if this XPath is unique
+                    const matchingElements = document.evaluate(
+                        classXPath, 
+                        document, 
+                        null, 
+                        XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, 
+                        null
+                    );
+                    
+                    if (matchingElements.snapshotLength === 1) {
+                        return classXPath;
+                    }
+                }
+            }
+            
+            // Generate a full path if no unique identifier is found
+            let path = '';
+            let currentElement = element;
+            
+            while (currentElement && currentElement.nodeType === Node.ELEMENT_NODE) {
+                let currentPath = currentElement.tagName.toLowerCase();
+                
+                // Add index if there are siblings with the same tag
+                const siblings = Array.from(currentElement.parentNode.children).filter(
+                    child => child.tagName === currentElement.tagName
+                );
+                
+                if (siblings.length > 1) {
+                    const index = siblings.indexOf(currentElement) + 1;
+                    currentPath += `[${index}]`;
+                }
+                
+                path = path ? `/${currentPath}${path}` : `/${currentPath}`;
+                currentElement = currentElement.parentNode;
+            }
+            
+            return path;
+        } catch (error) {
+            console.error('Error generating XPath:', error);
+            return null;
+        }
+    }
+    
+    findElementByXPath(xpath) {
+        try {
+            return document.evaluate(
+                xpath, 
+                document, 
+                null, 
+                XPathResult.FIRST_ORDERED_NODE_TYPE, 
+                null
+            ).singleNodeValue;
+        } catch (error) {
+            console.error('Error finding element by XPath:', error);
+            return null;
+        }
+    }
+    
+    async saveElementXPath(element) {
+        if (!element) return false;
+        
+        try {
+            const xpath = this.generateXPath(element);
+            if (!xpath) return false;
+            
+            const domain = window.location.hostname;
+            
+            // Get existing saved elements
+            const result = await new Promise(resolve => {
+                chrome.storage.sync.get(['savedElements'], result => {
+                    resolve(result.savedElements || {});
+                });
+            });
+            
+            // Update with new element
+            const savedElements = result;
+            savedElements[domain] = xpath;
+            
+            // Save back to storage
+            await new Promise(resolve => {
+                chrome.storage.sync.set({ savedElements }, () => {
+                    resolve();
+                });
+            });
+            
+            return true;
+        } catch (error) {
+            console.error('Error saving element XPath:', error);
+            return false;
+        }
+    }
+    
+    async getSavedElement() {
+        try {
+            const domain = window.location.hostname;
+            
+            // Get saved elements
+            const result = await new Promise(resolve => {
+                chrome.storage.sync.get(['savedElements'], result => {
+                    resolve(result.savedElements || {});
+                });
+            });
+            
+            const savedElements = result;
+            const xpath = savedElements[domain];
+            
+            if (!xpath) return null;
+            
+            return this.findElementByXPath(xpath);
+        } catch (error) {
+            console.error('Error getting saved element:', error);
+            return null;
+        }
+    }
+    
+    async hasSavedElement() {
+        try {
+            const domain = window.location.hostname;
+            
+            // Get saved elements
+            const result = await new Promise(resolve => {
+                chrome.storage.sync.get(['savedElements'], result => {
+                    resolve(result.savedElements || {});
+                });
+            });
+            
+            const savedElements = result;
+            return !!savedElements[domain];
+        } catch (error) {
+            console.error('Error checking for saved element:', error);
+            return false;
         }
     }
 }

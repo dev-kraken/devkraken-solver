@@ -3,6 +3,8 @@
   "name": "Quiz Solver with Gemini",
   "version": "1.0",
   "description": "AI-powered quiz solution finder using Google Gemini",
+  "author": "Dev Kraken <soman@devkraken.com>",
+  "homepage_url": "https://github.com/dev-kraken/devkraken-solver",
   "permissions": [
     "storage",
     "scripting",
@@ -21,7 +23,8 @@
   },
   "options_page": "options.html",
   "background": {
-    "service_worker": "js/background.js"
+    "service_worker": "js/background.js",
+    "type": "module"
   },
   "content_scripts": [
     {

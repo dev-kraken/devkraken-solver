@@ -218,3 +218,50 @@
 .close-btn:hover {
     opacity: 1;
 }
+
+/* Selection mode styles */
+#quiz-solver-selection-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(142, 36, 170, 0.1);
+    z-index: 9990;
+    pointer-events: none;
+}
+
+.quiz-solver-selection-mode {
+    cursor: pointer !important;
+}
+
+.quiz-solver-selection-highlight {
+    outline: 2px dashed #8e24aa !important;
+    background-color: rgba(142, 36, 170, 0.1) !important;
+    transition: all 0.2s ease !important;
+}
+
+.quiz-solver-btn.selection-mode {
+    background-color: #e53935 !important;
+    box-shadow: 0 2px 8px rgba(229, 57, 53, 0.4) !important;
+}
+
+.quiz-solver-btn.selection-mode:hover {
+    background-color: #d32f2f !important;
+}
+
+.quiz-solver-selection-instructions {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-family: 'Roboto', 'Segoe UI', Arial, sans-serif;
+    font-size: 14px;
+    z-index: 10000;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}

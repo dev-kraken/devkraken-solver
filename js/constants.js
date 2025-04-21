@@ -43,7 +43,9 @@ export const STORAGE_KEYS = {
     AUTO_DETECT: 'autoDetectEnabled',
     DETECTION_SENSITIVITY: 'detectionSensitivity',
     DETECTION_HISTORY: 'detectionHistory',
-    USER_PREFERENCES: 'userPreferences'
+    USER_PREFERENCES: 'userPreferences',
+    SAVED_ELEMENTS: 'savedElements',
+    LAST_USED_XPATH: 'lastUsedXPath'
 };
 
 export const API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
@@ -54,7 +56,9 @@ export const MESSAGE_TYPES = {
     SOLVE_SELECTION: "SOLVE_SELECTION",
     AUTO_DETECT: "AUTO_DETECT",
     TOGGLE_AUTO_DETECT: "TOGGLE_AUTO_DETECT",
-    ADJUST_SENSITIVITY: "ADJUST_SENSITIVITY"
+    ADJUST_SENSITIVITY: "ADJUST_SENSITIVITY",
+    SAVE_ELEMENT: "SAVE_ELEMENT",
+    USE_SAVED_ELEMENT: "USE_SAVED_ELEMENT"
 };
 
 // Question detection patterns - expanded for better coverage
@@ -141,4 +145,25 @@ export const TIME_CONSTANTS = {
     DEBOUNCE_DELAY: 1000,
     ANIMATION_DELAY: 300,
     NOTIFICATION_DURATION: 5000
+};
+
+// DevKraken branding
+export const BRANDING = {
+    NAME: "DevKraken",
+    TAGLINE: "Powered by DevKraken",
+    WEBSITE: "https://devkraken.com",
+    COPYRIGHT: ` ${new Date().getFullYear()} DevKraken. All rights reserved.`,
+    DEVELOPER: {
+        NAME: "Dev Kraken",
+        EMAIL: "soman@devkraken.com",
+        GITHUB: "https://github.com/dev-kraken",
+        PROJECT_URL: "https://github.com/dev-kraken/devkraken-solver"
+    },
+    COLORS: {
+        PRIMARY: "#8e24aa",
+        SECONDARY: "#1e88e5",
+        SUCCESS: "#43a047",
+        ERROR: "#e53935",
+        WARNING: "#fb8c00"
+    }
 };

@@ -30,6 +30,20 @@ body {
     cursor: pointer;
 }
 
+.btn-secondary {
+    background: #5f6368;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 8px;
+}
+
+.btn-secondary:hover {
+    background: #4a4d51;
+}
+
 .status-message {
     margin-top: 12px;
     padding: 8px;
@@ -44,4 +58,40 @@ body {
 .status-error {
     background: #ea4335;
     color: white;
+}
+
+.section {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.info-text {
+    color: #5f6368;
+    font-size: 14px;
+    margin-top: 8px;
+}
+
+.branding {
+    text-align: center;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+    font-size: 12px;
+    color: #666;
+}
+
+.branding a {
+    color: #8e24aa;
+    text-decoration: none;
+}
+
+.branding a:hover {
+    text-decoration: underline;
+}
+
+.developer-info {
+    margin-top: 5px;
+    font-size: 11px;
+    color: #777;
 }

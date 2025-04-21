@@ -1,21 +1,12 @@
 // Background script for Quiz Solver with Gemini
-import { STORAGE_KEYS, MESSAGE_TYPES, TIME_CONSTANTS } from './constants.js';
-
-// Keep track of constants
-let constants = null;
+import { STORAGE_KEYS, MESSAGE_TYPES, TIME_CONSTANTS, BRANDING } from './constants.js';
 
 // Initialize extension
 async function initialize() {
     try {
-        // Load constants
-        const module = await import(chrome.runtime.getURL('js/constants.js'));
-        constants = module;
-        
         // Initialize storage and context menu
         await initializeStorage();
         createContextMenu();
-        
-        console.log('Quiz Solver extension initialized successfully');
     } catch (error) {
         console.error('Failed to initialize extension:', error);
     }
@@ -28,7 +19,8 @@ async function initializeStorage() {
         STORAGE_KEYS.AUTO_DETECT,
         STORAGE_KEYS.DETECTION_SENSITIVITY,
         STORAGE_KEYS.DETECTION_HISTORY,
-        STORAGE_KEYS.USER_PREFERENCES
+        STORAGE_KEYS.USER_PREFERENCES,
+        STORAGE_KEYS.SAVED_ELEMENTS
     ]);
     
     // Default settings
@@ -37,6 +29,7 @@ async function initializeStorage() {
         [STORAGE_KEYS.AUTO_DETECT]: true,
         [STORAGE_KEYS.DETECTION_SENSITIVITY]: 'medium',
         [STORAGE_KEYS.DETECTION_HISTORY]: [],
+        [STORAGE_KEYS.SAVED_ELEMENTS]: {},
         [STORAGE_KEYS.USER_PREFERENCES]: {
             showAnswerPanel: true,
             autoScrollToAnswer: true,
@@ -57,7 +50,6 @@ async function initializeStorage() {
     
     // Only update storage if necessary
     if (needsUpdate) {
-        console.log('Initializing storage with default values');
         await chrome.storage.sync.set(updateNeeded);
     }
 }
@@ -121,135 +113,146 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // Handle messages from content scripts and popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log('Background received message:', message.type || message.action);
-    
-    if (message.type === MESSAGE_TYPES.VALIDATE_API_KEY) {
-        validateApiKey(message.payload)
-            .then(result => sendResponse(result))
-            .catch(error => sendResponse({ valid: false, error: error.message }));
-        return true; // Keep the message channel open for async response
-    }
-    
-    if (message.type === MESSAGE_TYPES.STORAGE_UPDATE) {
-        handleStorageUpdate(message.payload)
-            .then(result => {
-                broadcastStorageUpdate(message.payload);
-                sendResponse(result);
-            })
-            .catch(error => sendResponse({ success: false, error: error.message }));
-        return true; // Keep the message channel open for async response
-    }
-    
-    if (message.type === MESSAGE_TYPES.AUTO_DETECT) {
-        // Relay auto-detect message to all tabs in the current window
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            if (tabs && tabs[0] && tabs[0].id) {
-                chrome.tabs.sendMessage(tabs[0].id, {
-                    type: MESSAGE_TYPES.AUTO_DETECT
-                });
-            }
-        });
-        sendResponse({status: 'triggered'});
-        return true;
-    }
-    
-    if (message.type === MESSAGE_TYPES.ADJUST_SENSITIVITY) {
-        handleStorageUpdate({
-            key: STORAGE_KEYS.DETECTION_SENSITIVITY,
-            value: message.payload.sensitivity
-        }).then(() => {
-            broadcastStorageUpdate({
+    try {
+        if (message.type === MESSAGE_TYPES.VALIDATE_API_KEY) {
+            validateApiKey(message.payload)
+                .then(result => sendResponse(result))
+                .catch(error => sendResponse({ valid: false, error: error.message }));
+            return true; // Keep the message channel open for async response
+        }
+        
+        if (message.type === MESSAGE_TYPES.STORAGE_UPDATE) {
+            handleStorageUpdate(message.payload)
+                .then(result => {
+                    broadcastStorageUpdate(message.payload);
+                    sendResponse(result);
+                })
+                .catch(error => sendResponse({ success: false, error: error.message }));
+            return true; // Keep the message channel open for async response
+        }
+        
+        if (message.type === MESSAGE_TYPES.AUTO_DETECT) {
+            // Relay auto-detect message to all tabs in the current window
+            chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+                if (tabs && tabs[0] && tabs[0].id) {
+                    chrome.tabs.sendMessage(tabs[0].id, {
+                        type: MESSAGE_TYPES.AUTO_DETECT
+                    });
+                }
+            });
+            sendResponse({status: 'triggered'});
+            return true;
+        }
+        
+        if (message.type === MESSAGE_TYPES.ADJUST_SENSITIVITY) {
+            handleStorageUpdate({
                 key: STORAGE_KEYS.DETECTION_SENSITIVITY,
                 value: message.payload.sensitivity
-            });
-            sendResponse({status: 'updated'});
-        });
-        return true;
-    }
-    
-    if (message.action === "getQuizHistory") {
-        chrome.storage.sync.get([STORAGE_KEYS.DETECTION_HISTORY], (data) => {
-            sendResponse({
-                history: data[STORAGE_KEYS.DETECTION_HISTORY] || []
-            });
-        });
-        return true;
-    }
-    
-    if (message.action === "clearQuizHistory") {
-        chrome.storage.sync.set({[STORAGE_KEYS.DETECTION_HISTORY]: []}, () => {
-            sendResponse({status: 'cleared'});
-        });
-        return true;
-    }
-    
-    if (message.action === "getUserPreferences") {
-        chrome.storage.sync.get([STORAGE_KEYS.USER_PREFERENCES], (data) => {
-            sendResponse({
-                preferences: data[STORAGE_KEYS.USER_PREFERENCES] || {}
-            });
-        });
-        return true;
-    }
-    
-    if (message.action === "updateUserPreferences") {
-        chrome.storage.sync.get([STORAGE_KEYS.USER_PREFERENCES], (data) => {
-            const currentPreferences = data[STORAGE_KEYS.USER_PREFERENCES] || {};
-            const updatedPreferences = {...currentPreferences, ...message.preferences};
-            
-            chrome.storage.sync.set({
-                [STORAGE_KEYS.USER_PREFERENCES]: updatedPreferences
-            }, () => {
+            }).then(() => {
                 broadcastStorageUpdate({
-                    key: STORAGE_KEYS.USER_PREFERENCES,
-                    value: updatedPreferences
+                    key: STORAGE_KEYS.DETECTION_SENSITIVITY,
+                    value: message.payload.sensitivity
                 });
-                sendResponse({status: 'preferences updated'});
+                sendResponse({status: 'updated'});
             });
-        });
+            return true;
+        }
+        
+        if (message.action === "getQuizHistory") {
+            chrome.storage.sync.get([STORAGE_KEYS.DETECTION_HISTORY], (data) => {
+                sendResponse({
+                    history: data[STORAGE_KEYS.DETECTION_HISTORY] || []
+                });
+            });
+            return true;
+        }
+        
+        if (message.action === "clearQuizHistory") {
+            chrome.storage.sync.set({[STORAGE_KEYS.DETECTION_HISTORY]: []}, () => {
+                sendResponse({status: 'cleared'});
+            });
+            return true;
+        }
+        
+        if (message.action === "getUserPreferences") {
+            chrome.storage.sync.get([STORAGE_KEYS.USER_PREFERENCES], (data) => {
+                sendResponse({
+                    preferences: data[STORAGE_KEYS.USER_PREFERENCES] || {}
+                });
+            });
+            return true;
+        }
+        
+        if (message.action === "updateUserPreferences") {
+            chrome.storage.sync.get([STORAGE_KEYS.USER_PREFERENCES], (data) => {
+                const currentPreferences = data[STORAGE_KEYS.USER_PREFERENCES] || {};
+                const updatedPreferences = {...currentPreferences, ...message.preferences};
+                
+                chrome.storage.sync.set({
+                    [STORAGE_KEYS.USER_PREFERENCES]: updatedPreferences
+                }, () => {
+                    sendResponse({status: 'updated'});
+                });
+            });
+            return true;
+        }
+    } catch (error) {
+        console.error('Error handling message:', error);
+        sendResponse({status: 'error', message: error.message});
         return true;
     }
 });
 
 // Broadcast storage update to all tabs
-function broadcastStorageUpdate(payload) {
-    chrome.tabs.query({}, (tabs) => {
+async function broadcastStorageUpdate(payload) {
+    try {
+        const tabs = await chrome.tabs.query({});
+        
         tabs.forEach(tab => {
             chrome.tabs.sendMessage(tab.id, {
                 type: MESSAGE_TYPES.STORAGE_UPDATE,
-                payload: payload
+                payload
             }).catch(() => {
                 // Ignore errors from inactive tabs
             });
         });
-    });
+    } catch (error) {
+        console.error('Error broadcasting storage update:', error);
+    }
 }
 
 // Validate API key existence
 async function validateApiKey(payload) {
-    const data = await chrome.storage.sync.get([STORAGE_KEYS.API_KEY]);
-    const apiKey = data[STORAGE_KEYS.API_KEY];
-    
-    if (!apiKey) {
-        return { valid: false, message: 'API key not found' };
+    try {
+        if (!payload || !payload.apiKey) {
+            return { valid: false, error: 'API key is required' };
+        }
+        
+        // Make a minimal request to the Gemini API to validate the key
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${payload.apiKey}`, {
+            method: 'GET'
+        });
+        
+        return { valid: response.ok };
+    } catch (error) {
+        console.error('API key validation error:', error);
+        return { valid: false, error: error.message };
     }
-    
-    // Optional: Basic validation that it looks like a reasonable API key
-    if (apiKey.length < 10) {
-        return { valid: false, message: 'API key appears to be invalid (too short)' };
-    }
-    
-    return { valid: true, key: apiKey };
 }
 
 // Handle storage update requests
 async function handleStorageUpdate(payload) {
-    if (!payload || !payload.key) {
-        throw new Error('Invalid storage update payload');
+    try {
+        if (!payload || !payload.key) {
+            return { success: false, error: 'Invalid payload' };
+        }
+        
+        await chrome.storage.sync.set({ [payload.key]: payload.value });
+        return { success: true };
+    } catch (error) {
+        console.error('Storage update error:', error);
+        return { success: false, error: error.message };
     }
-    
-    await chrome.storage.sync.set({ [payload.key]: payload.value });
-    return { success: true };
 }
 
 // Listen for extension installation or update
@@ -257,37 +260,7 @@ chrome.runtime.onInstalled.addListener(details => {
     if (details.reason === 'install') {
         // Show onboarding page for new installations
         chrome.tabs.create({
-            url: chrome.runtime.getURL('onboarding.html')
-        });
-        initialize();
-    } else if (details.reason === 'update') {
-        initialize();
-    }
-});
-
-// Handle extension updates
-chrome.runtime.onUpdateAvailable.addListener(() => {
-    chrome.runtime.reload();
-});
-
-// Listen for tab updates to inject content script if needed
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab.url && tab.url.startsWith('http')) {
-        // Check if auto-detect is enabled
-        chrome.storage.sync.get([STORAGE_KEYS.AUTO_DETECT], (data) => {
-            const autoDetectEnabled = data[STORAGE_KEYS.AUTO_DETECT] !== undefined ? 
-                data[STORAGE_KEYS.AUTO_DETECT] : true;
-                
-            if (autoDetectEnabled) {
-                // Wait a moment for page to fully render
-                setTimeout(() => {
-                    chrome.tabs.sendMessage(tabId, {
-                        type: MESSAGE_TYPES.AUTO_DETECT
-                    }).catch(() => {
-                        // Ignore errors if content script is not ready
-                    });
-                }, TIME_CONSTANTS.DEBOUNCE_DELAY);
-            }
+            url: chrome.runtime.getURL('options.html')
         });
     }
 });

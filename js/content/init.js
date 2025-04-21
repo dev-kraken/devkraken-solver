@@ -1,13 +1,12 @@
 /**
  * Quiz Solver with Gemini - Content Script Initializer
  * This script loads the extension functionality into the page
+ * Developed by Dev Kraken (soman@devkraken.com)
  */
 
 // Load constants and initialize the app
 async function initializeApp() {
     try {
-        console.log('Initializing Quiz Solver extension...');
-        
         // Load constants
         const constants = await import(chrome.runtime.getURL('js/constants.js'));
         
@@ -16,7 +15,8 @@ async function initializeApp() {
             CLASSES: constants.CLASSES,
             STORAGE_KEYS: constants.STORAGE_KEYS,
             API_ENDPOINT: constants.API_ENDPOINT,
-            MESSAGE_TYPES: constants.MESSAGE_TYPES
+            MESSAGE_TYPES: constants.MESSAGE_TYPES,
+            BRANDING: constants.BRANDING
         };
         
         // Load and initialize the UIManager
@@ -31,8 +31,6 @@ async function initializeApp() {
         
         // Store service reference for debugging
         window.__QUIZ_SOLVER__ = quizService;
-        
-        console.log('Quiz Solver extension initialized successfully');
     } catch (error) {
         console.error('Failed to initialize Quiz Solver extension:', error);
     }
