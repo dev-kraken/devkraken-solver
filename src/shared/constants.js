@@ -1,3 +1,11 @@
+/**
+ * Shared constants for the Quiz Solver extension
+ * @author Dev Kraken <soman@devkraken.com>
+ */
+
+/**
+ * CSS classes used throughout the extension
+ */
 export const CLASSES = {
     CORRECT: 'quiz-solver-correct',
     
@@ -10,7 +18,6 @@ export const CLASSES = {
         '[role="heading"]',
         'h3',
         'h4',
-        // Additional question selectors for better coverage
         '.stem',
         '.problem-statement',
         '.assessment-item',
@@ -28,7 +35,6 @@ export const CLASSES = {
         'li.answer',
         '[role="radio"]',
         '[role="checkbox"]',
-        // Additional option selectors for better coverage
         '.choice',
         '.mcq-option',
         '.assessment-option',
@@ -38,6 +44,9 @@ export const CLASSES = {
     ]
 };
 
+/**
+ * Storage keys used for Chrome storage
+ */
 export const STORAGE_KEYS = {
     API_KEY: 'geminiApiKey',
     AUTO_DETECT: 'autoDetectEnabled',
@@ -48,8 +57,14 @@ export const STORAGE_KEYS = {
     LAST_USED_XPATH: 'lastUsedXPath'
 };
 
+/**
+ * Gemini API endpoint for content generation
+ */
 export const API_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
+/**
+ * Message types for communication between extension components
+ */
 export const MESSAGE_TYPES = {
     VALIDATE_API_KEY: "VALIDATE_API_KEY",
     STORAGE_UPDATE: "STORAGE_UPDATE",
@@ -61,21 +76,25 @@ export const MESSAGE_TYPES = {
     USE_SAVED_ELEMENT: "USE_SAVED_ELEMENT"
 };
 
-// Question detection patterns - expanded for better coverage
+/**
+ * Regular expressions for detecting question patterns
+ */
 export const QUESTION_PATTERNS = [
-    /\?$/,                                // Ends with question mark
-    /^(what|which|who|where|when|why|how)/i, // Starts with question word
-    /^choose the (correct|right|best)/i,  // Common quiz phrases
+    /\?$/,
+    /^(what|which|who|where|when|why|how)/i,
+    /^choose the (correct|right|best)/i,
     /^select the (correct|right|best)/i,
     /^identify the/i,
-    /correct (answer|option|choice) is/i, // Additional patterns
+    /correct (answer|option|choice) is/i,
     /^(true or false)/i,
     /^(match|arrange|order)/i,
     /^(solve|calculate|compute)/i,
     /^(explain|describe|discuss)/i
 ];
 
-// Common quiz websites and their selectors - expanded with more sites
+/**
+ * Site-specific selectors for common quiz websites
+ */
 export const SITE_SPECIFIC_SELECTORS = {
     'quizlet.com': {
         QUESTION: '.SetPageTermText-content',
@@ -111,7 +130,9 @@ export const SITE_SPECIFIC_SELECTORS = {
     }
 };
 
-// Academic subjects for better context-aware answering
+/**
+ * Patterns for detecting the academic subject of a question
+ */
 export const SUBJECT_PATTERNS = {
     MATH: [
         /equation|formula|calculate|solve for|graph|math/i,
@@ -140,19 +161,23 @@ export const SUBJECT_PATTERNS = {
     ]
 };
 
-// Time-related helper constants
+/**
+ * Time constants for various operations
+ */
 export const TIME_CONSTANTS = {
     DEBOUNCE_DELAY: 1000,
     ANIMATION_DELAY: 300,
     NOTIFICATION_DURATION: 5000
 };
 
-// DevKraken branding
+/**
+ * DevKraken branding information
+ */
 export const BRANDING = {
     NAME: "DevKraken",
     TAGLINE: "Powered by DevKraken",
     WEBSITE: "https://devkraken.com",
-    COPYRIGHT: ` ${new Date().getFullYear()} DevKraken. All rights reserved.`,
+    COPYRIGHT: `© ${new Date().getFullYear()} DevKraken. All rights reserved.`,
     DEVELOPER: {
         NAME: "Dev Kraken",
         EMAIL: "soman@devkraken.com",

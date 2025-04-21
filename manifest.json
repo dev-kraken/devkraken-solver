@@ -23,13 +23,12 @@
   },
   "options_page": "options.html",
   "background": {
-    "service_worker": "js/background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["js/content/init.js"],
+      "js": ["content-script.js"],
       "css": ["css/content.css"],
       "world": "ISOLATED"
     }
@@ -37,12 +36,17 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "js/constants.js",
-        "js/content/UIManager.js",
-        "js/content/QuizService.js"
+        "src/content/index.js",
+        "src/background/index.js",
+        "src/shared/constants.js",
+        "src/shared/utils/*.js",
+        "src/content/ui/*.js",
+        "src/content/services/*.js",
+        "src/content/ui/components/*.js",
+        "src/background/*.js",
+        "css/*.css"
       ],
-      "matches": ["<all_urls>"],
-      "type": "module"
+      "matches": ["<all_urls>"]
     }
   ],
   "icons": {
